@@ -311,6 +311,12 @@ export default function App() {
                           >
                             {DIFFICULTY_CONFIG[selectedApp.difficulty].label}
                           </span>
+                          {selectedApp.status !== 'available' && (
+                            <span className="px-3 py-1 bg-gray-100 text-gray-500 text-xs font-medium rounded-full flex items-center gap-1">
+                              <Clock size={12} />
+                              Coming Soon
+                            </span>
+                          )}
                         </div>
                         <h2 className="text-2xl md:text-3xl font-display font-bold text-gray-800">
                           {selectedApp.title}
@@ -351,7 +357,7 @@ export default function App() {
                       ) : (
                         <div className="w-full sm:w-auto px-8 py-4 bg-gray-100 text-gray-500 font-bold rounded-2xl flex items-center justify-center gap-2 text-lg border-2 border-dashed border-gray-300">
                           <Clock size={20} />
-                          開発中（リリースをお待ちください）
+                          Coming Soon（リリースをお待ちください）
                         </div>
                       )}
                     </div>
