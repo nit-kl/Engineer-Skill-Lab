@@ -22,26 +22,6 @@ export const appsData: SkillApp[] = [
     icon: '🗄️'
   },
   {
-    id: 'git-branch-quest',
-    title: 'Gitブランチクエスト',
-    description: 'ブランチ操作をビジュアルに表現。冒険を進めながらmerge, rebaseを体験しよう。',
-    category: 'DevOps',
-    difficulty: 1,
-    status: 'available',
-    tags: ['Git', 'バージョン管理', 'チーム開発'],
-    icon: '🌿'
-  },
-  {
-    id: 'docker-container-lab',
-    title: 'Dockerコンテナラボ',
-    description: 'Dockerfileの命令をブロック形式で組み立て、最適化されたコンテナイメージを構築！',
-    category: 'DevOps',
-    difficulty: 2,
-    status: 'designing',
-    tags: ['Docker', 'コンテナ', 'インフラ'],
-    icon: '🐳'
-  },
-  {
     id: 'api-design-workshop',
     title: 'API設計ワークショップ',
     description: 'REST/GraphQLのエンドポイントを設計し、リクエスト/レスポンスをプレビュー。',
@@ -60,26 +40,6 @@ export const appsData: SkillApp[] = [
     status: 'designing',
     tags: ['セキュリティ', 'OWASP', '脆弱性診断'],
     icon: '🛡️'
-  },
-  {
-    id: 'linux-command-quest',
-    title: 'Linuxコマンドクエスト',
-    description: '仮想ターミナルで実際のコマンドを打って冒険を進行するRPG。',
-    category: 'インフラ',
-    difficulty: 1,
-    status: 'available',
-    tags: ['Linux', 'コマンド', 'ターミナル'],
-    icon: '🐧'
-  },
-  {
-    id: 'cicd-pipeline-builder',
-    title: 'CI/CDパイプラインビルダー',
-    description: 'ビルド→テスト→デプロイのブロックを接続して自動化パイプラインを構築。',
-    category: 'DevOps',
-    difficulty: 2,
-    status: 'designing',
-    tags: ['CI/CD', 'GitHub Actions', '自動化'],
-    icon: '🚀'
   },
   {
     id: 'network-topology-builder',
