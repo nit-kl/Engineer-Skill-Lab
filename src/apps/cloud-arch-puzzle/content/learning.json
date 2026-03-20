@@ -1,0 +1,48 @@
+{
+  "patterns": {
+    "q1-aws": {
+      "hint": "入口はロードバランサ、アプリはAPI管理、ネットワークはVPC、計算はVM、データはオブジェクトストレージです。",
+      "explanation": "ALB→API Gateway→VPC→EC2→S3 の流れをイメージしましょう。"
+    },
+    "q1-azure": {
+      "hint": "入口/アプリ/API管理/ネットワーク/Vm/データストレージを対応付けます。",
+      "explanation": "Application Gateway→API Management→VNet→Virtual Machines→Blob Storage の構成です。"
+    },
+    "q1-gcp": {
+      "hint": "Load Balancing→API Gateway→VPC Network→Compute Engine→Cloud Storage の対応です。",
+      "explanation": "Cloud Load Balancing→API Gateway→VPC Network→Compute Engine→Cloud Storage。"
+    },
+    "q2-aws": {
+      "hint": "デコイに紛らわしいサービスがありますが、層ごとの役割で選びましょう。",
+      "explanation": "ALB（入口）とAPI Gateway（アプリ）、VPC（ネットワーク）、EC2（計算）、S3（データ）。"
+    },
+    "q2-azure": {
+      "hint": "同じ層でもクラウド固有の名称に置き換える問題です。",
+      "explanation": "入口はApplication Gateway、アプリはAPI Management、ネットワークはVNet、計算はVM、データはBlob Storage。"
+    },
+    "q2-gcp": {
+      "hint": "層の役割を保ったまま、GCPのサービス名へ読み替えます。",
+      "explanation": "入口はCloud Load Balancing、アプリはAPI Gateway、ネットワークはVPC Network、計算はCompute Engine、データはCloud Storage。"
+    },
+    "q3-aws": {
+      "hint": "WAFやWAF関連のデコイが紛れます。入力/通信の入り口か、計算/データの役割かで判別します。",
+      "explanation": "ALB→API Gateway→VPC→EC2→S3。"
+    },
+    "q3-azure": {
+      "hint": "監視/ネットワーク関連のデコイがありますが、層が何かに注目してください。",
+      "explanation": "Application Gateway→API Management→VNet→Virtual Machines→Blob Storage。"
+    },
+    "q3-gcp": {
+      "hint": "ログ/モニタリング/セキュリティデコイは役割が違います。入口/アプリ/ネットワーク/計算/データに合わせます。",
+      "explanation": "Cloud Load Balancing→API Gateway→VPC Network→Compute Engine→Cloud Storage。"
+    }
+  },
+  "rankDescriptions": {
+    "S": "完璧です。層ごとの役割で迷わず構成できています。",
+    "A": "かなり良いです。細部の読み替えができています。",
+    "B": "試行錯誤できています。層の対応をもう一段固めましょう。",
+    "C": "基礎は掴めています。入口/アプリ/データの役割を整理してください。",
+    "D": "もう一度ヒントを見て再チャレンジです。"
+  }
+}
+

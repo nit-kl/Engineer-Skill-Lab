@@ -62,26 +62,6 @@ export const appsData: SkillApp[] = [
     icon: '🛡️'
   },
   {
-    id: 'algo-visualizer',
-    title: 'アルゴリズムビジュアライザー',
-    description: 'ソート・探索・グラフアルゴリズムの動作を1ステップずつ可視化して理解を深めよう。',
-    category: 'CS基礎',
-    difficulty: 1,
-    status: 'available',
-    tags: ['アルゴリズム', 'データ構造', '可視化'],
-    icon: '📊'
-  },
-  {
-    id: 'regex-battle',
-    title: '正規表現バトル',
-    description: '制限時間内に正規表現パターンを構築してマッチングさせるタイムアタック対戦！',
-    category: 'CS基礎',
-    difficulty: 1,
-    status: 'designing',
-    tags: ['正規表現', 'テキスト処理', 'パズル'],
-    icon: '🔤'
-  },
-  {
     id: 'linux-command-quest',
     title: 'Linuxコマンドクエスト',
     description: '仮想ターミナルで実際のコマンドを打って冒険を進行するRPG。',
@@ -130,16 +110,6 @@ export const appsData: SkillApp[] = [
     status: 'planning',
     tags: ['システム設計', 'スケーラビリティ', 'AI対話'],
     icon: '📐'
-  },
-  {
-    id: 'terraform-craft',
-    title: 'Terraformクラフト',
-    description: 'HCLのリソースブロックを組み合わせてインフラを宣言的に構築するシミュレーター。',
-    category: 'クラウド',
-    difficulty: 2,
-    status: 'planning',
-    tags: ['Terraform', 'IaC', 'インフラ自動化'],
-    icon: '🏗️'
   },
   {
     id: 'monitoring-dash-sim',

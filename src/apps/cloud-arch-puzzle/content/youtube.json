@@ -1,0 +1,41 @@
+{
+  "rankToVideo": {
+    "S": {
+      "videoId": "",
+      "url": "https://www.youtube.com/",
+      "chapters": [
+        { "start": "0:00", "title": "概要（クラウド層設計）" },
+        { "start": "1:20", "title": "各層の役割" }
+      ]
+    },
+    "A": {
+      "videoId": "",
+      "url": "https://www.youtube.com/",
+      "chapters": [
+        { "start": "0:00", "title": "良い点の振り返り" }
+      ]
+    },
+    "B": {
+      "videoId": "",
+      "url": "https://www.youtube.com/",
+      "chapters": [
+        { "start": "0:00", "title": "迷いが出るポイント" }
+      ]
+    },
+    "C": {
+      "videoId": "",
+      "url": "https://www.youtube.com/",
+      "chapters": [
+        { "start": "0:00", "title": "基礎の整理" }
+      ]
+    },
+    "D": {
+      "videoId": "",
+      "url": "https://www.youtube.com/",
+      "chapters": [
+        { "start": "0:00", "title": "再チャレンジのコツ" }
+      ]
+    }
+  }
+}
+

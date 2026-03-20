@@ -1,14 +1,12 @@
 import type { ComponentType } from 'react';
 import { appsData } from '../data';
-import CloudArchPuzzleApp from './apps/cloud-arch-puzzle/App';
-import GitBranchQuestApp from './apps/git-branch-quest/App';
-import AlgoVisualizerApp from './apps/algo-visualizer/App';
-import LinuxCommandQuestApp from './apps/linux-command-quest/App';
+import CloudArchPuzzleApp from '../apps/cloud-arch-puzzle/App';
+import GitBranchQuestApp from '../apps/git-branch-quest/App';
+import LinuxCommandQuestApp from '../apps/linux-command-quest/App';
 
 const APP_COMPONENTS: Record<string, ComponentType> = {
   'cloud-arch-puzzle': CloudArchPuzzleApp,
   'git-branch-quest': GitBranchQuestApp,
-  'algo-visualizer': AlgoVisualizerApp,
   'linux-command-quest': LinuxCommandQuestApp,
 };
 

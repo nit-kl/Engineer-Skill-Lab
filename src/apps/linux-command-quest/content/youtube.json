@@ -1,0 +1,10 @@
+{
+  "default": {
+    "videoId": "",
+    "url": "https://www.youtube.com/",
+    "chapters": [
+      { "start": "0:00", "title": "Linuxコマンドの全体像" }
+    ]
+  }
+}
+

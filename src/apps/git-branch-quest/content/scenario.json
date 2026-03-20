@@ -1,0 +1,41 @@
+{
+  "steps": [
+    {
+      "id": "create",
+      "title": "ブランチ作成",
+      "description": "まず feature ブランチを作って作業を分離します。",
+      "correctAction": "git_checkout_feature"
+    },
+    {
+      "id": "merge",
+      "title": "マージ",
+      "description": "開発ブランチを main にマージします。",
+      "correctAction": "git_merge_feature"
+    },
+    {
+      "id": "conflict",
+      "title": "コンフリクト解決",
+      "description": "衝突を解決するために、どちらを採用するか選びます。",
+      "correctAction": "resolve_ours"
+    },
+    {
+      "id": "cherry-pick",
+      "title": "チェリーピック",
+      "description": "必要な変更だけを別ブランチから取り込みます。",
+      "correctAction": "git_cherry_pick"
+    },
+    {
+      "id": "gitflow",
+      "title": "Git Flow",
+      "description": "feature を release にまとめ、main へ統合します。",
+      "correctAction": "apply_gitflow"
+    },
+    {
+      "id": "rebase",
+      "title": "リベース戦略",
+      "description": "履歴を整えてから統合します。",
+      "correctAction": "git_rebase"
+    }
+  ]
+}
+
