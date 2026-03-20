@@ -1,0 +1,14 @@
+@import url('https://fonts.googleapis.com/css2?family=Hachi+Maru+Pop&family=M+PLUS+Rounded+1c:wght@400;500;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "M PLUS Rounded 1c", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Hachi Maru Pop", cursive;
+}
+
+body {
+  background: linear-gradient(135deg, #ffe6e6 0%, #e6f2ff 33%, #ffffe6 66%, #e6ffe6 100%);
+  background-attachment: fixed;
+  color: #333333;
+  min-height: 100vh;
+}
