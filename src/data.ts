@@ -27,7 +27,7 @@ export const appsData: SkillApp[] = [
     description: 'ブランチ操作をビジュアルに表現。冒険を進めながらmerge, rebaseを体験しよう。',
     category: 'DevOps',
     difficulty: 1,
-    status: 'designing',
+    status: 'available',
     tags: ['Git', 'バージョン管理', 'チーム開発'],
     icon: '🌿'
   },
@@ -67,7 +67,7 @@ export const appsData: SkillApp[] = [
     description: 'ソート・探索・グラフアルゴリズムの動作を1ステップずつ可視化して理解を深めよう。',
     category: 'CS基礎',
     difficulty: 1,
-    status: 'designing',
+    status: 'available',
     tags: ['アルゴリズム', 'データ構造', '可視化'],
     icon: '📊'
   },
@@ -87,7 +87,7 @@ export const appsData: SkillApp[] = [
     description: '仮想ターミナルで実際のコマンドを打って冒険を進行するRPG。',
     category: 'インフラ',
     difficulty: 1,
-    status: 'designing',
+    status: 'available',
     tags: ['Linux', 'コマンド', 'ターミナル'],
     icon: '🐧'
   },
