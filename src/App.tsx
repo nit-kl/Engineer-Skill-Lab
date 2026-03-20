@@ -110,9 +110,6 @@ export default function App() {
                 </div>
               </div>
 
-              <div className="flex items-center gap-4">
-                <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-400 to-emerald-400 border-2 border-white shadow-sm"></div>
-              </div>
             </div>
           </header>
 

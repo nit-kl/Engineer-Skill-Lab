@@ -15,6 +15,9 @@ View your app in AI Studio: https://ai.studio/apps/54e59527-9e3f-4a6f-8015-77852
 
 1. Install dependencies:
    `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
+2. Run the app:
    `npm run dev`
+
+## Cloudflare Pages
+
+Cloudflare Pages へのデプロイ手順は `docs/CLOUDFLARE_PAGES_DEPLOYMENT.md` を参照してください。
