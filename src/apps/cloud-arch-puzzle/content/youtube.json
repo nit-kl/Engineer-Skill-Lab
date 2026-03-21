@@ -11,31 +11,53 @@
     "A": {
       "videoId": "",
       "url": "https://www.youtube.com/",
-      "chapters": [
-        { "start": "0:00", "title": "良い点の振り返り" }
-      ]
+      "chapters": [{ "start": "0:00", "title": "良い点の振り返り" }]
     },
     "B": {
       "videoId": "",
       "url": "https://www.youtube.com/",
-      "chapters": [
-        { "start": "0:00", "title": "迷いが出るポイント" }
-      ]
+      "chapters": [{ "start": "0:00", "title": "迷いが出るポイント" }]
     },
     "C": {
       "videoId": "",
       "url": "https://www.youtube.com/",
-      "chapters": [
-        { "start": "0:00", "title": "基礎の整理" }
-      ]
+      "chapters": [{ "start": "0:00", "title": "基礎の整理" }]
     },
     "D": {
       "videoId": "",
       "url": "https://www.youtube.com/",
-      "chapters": [
-        { "start": "0:00", "title": "再チャレンジのコツ" }
-      ]
+      "chapters": [{ "start": "0:00", "title": "再チャレンジのコツ" }]
+    }
+  },
+  "byChallengeId": {
+    "1": {
+      "rankToVideo": {
+        "S": {
+          "videoId": "868sjJXTCD8",
+          "url": "https://youtu.be/868sjJXTCD8",
+          "chapters": [{ "start": "0:00", "title": "基本的なWebサイトの流れ（レッスン1）" }]
+        },
+        "A": {
+          "videoId": "868sjJXTCD8",
+          "url": "https://youtu.be/868sjJXTCD8",
+          "chapters": [{ "start": "0:00", "title": "基本的なWebサイトの流れ（レッスン1）" }]
+        },
+        "B": {
+          "videoId": "868sjJXTCD8",
+          "url": "https://youtu.be/868sjJXTCD8",
+          "chapters": [{ "start": "0:00", "title": "基本的なWebサイトの流れ（レッスン1）" }]
+        },
+        "C": {
+          "videoId": "868sjJXTCD8",
+          "url": "https://youtu.be/868sjJXTCD8",
+          "chapters": [{ "start": "0:00", "title": "基本的なWebサイトの流れ（レッスン1）" }]
+        },
+        "D": {
+          "videoId": "868sjJXTCD8",
+          "url": "https://youtu.be/868sjJXTCD8",
+          "chapters": [{ "start": "0:00", "title": "基本的なWebサイトの流れ（レッスン1）" }]
+        }
+      }
     }
   }
 }
-
