@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { DragEvent as ReactDragEvent, MouseEvent as ReactMouseEvent } from 'react';
+import type {
+  DragEvent as ReactDragEvent,
+  PointerEvent as ReactPointerEvent,
+} from 'react';
 import { loadJson } from '../../utils/loadJson';
 import { YoutubeEntryPoint } from './youtube-entrypoint';
 import type { Rank, YoutubeContent } from './youtubeTypes';
@@ -341,6 +344,25 @@ function getRankByScore(score: number): Rank {
   return 'D';
 }
 
+const NODE_W = 108;
+const NODE_H = 72;
+
+function useCompactLayout(breakpointPx: number): boolean {
+  const [compact, setCompact] = useState(() =>
+    typeof window !== 'undefined' ? window.innerWidth <= breakpointPx : false
+  );
+
+  useEffect(() => {
+    const mq = window.matchMedia(`(max-width: ${breakpointPx}px)`);
+    const sync = () => setCompact(mq.matches);
+    sync();
+    mq.addEventListener('change', sync);
+    return () => mq.removeEventListener('change', sync);
+  }, [breakpointPx]);
+
+  return compact;
+}
+
 export default function CloudArchPuzzleApp() {
   const [learning, setLearning] = useState<LearningContent | null>(null);
   const [youtube, setYoutube] = useState<YoutubeContent | null>(null);
@@ -385,6 +407,9 @@ export default function CloudArchPuzzleApp() {
   const canvasRef = useRef<HTMLDivElement | null>(null);
   const dragOffset = useRef({ x: 0, y: 0 });
   const movingNode = useRef<string | null>(null);
+  const dragPointerId = useRef<number | null>(null);
+
+  const compact = useCompactLayout(720);
 
   const rank = result ? getRankByScore(result.score) : null;
 
@@ -423,45 +448,65 @@ export default function CloudArchPuzzleApp() {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left - 54;
-    const y = e.clientY - rect.top - 36;
+    const x = e.clientX - rect.left - NODE_W / 2;
+    const y = e.clientY - rect.top - NODE_H / 2;
     setNodes(prev => [
       ...prev,
       {
         id: genId(),
         ...comp,
-        x: Math.max(0, Math.min(x, rect.width - 108)),
-        y: Math.max(0, Math.min(y, rect.height - 72)),
+        x: Math.max(0, Math.min(x, rect.width - NODE_W)),
+        y: Math.max(0, Math.min(y, rect.height - NODE_H)),
       },
     ]);
   };
 
   const handleDragOver = (e: ReactDragEvent<HTMLDivElement>) => e.preventDefault();
 
-  const handleNodeMouseDown = (e: ReactMouseEvent<HTMLDivElement>, node: PlacedNode) => {
-    if (e.button === 2 || connecting) return;
+  const addComponentFromCatalog = useCallback((comp: CatalogItem) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    setNodes(prev => {
+      const stagger = (prev.length % 6) * 14;
+      const x = Math.max(0, Math.min((rect.width - NODE_W) / 2 + stagger, rect.width - NODE_W));
+      const y = Math.max(0, Math.min((rect.height - NODE_H) / 2 + stagger, rect.height - NODE_H));
+      return [...prev, { id: genId(), ...comp, x, y }];
+    });
+  }, []);
+
+  const handleNodePointerDown = (e: ReactPointerEvent<HTMLDivElement>, node: PlacedNode) => {
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    if (connecting) return;
+    e.preventDefault();
     e.stopPropagation();
     const canvas = canvasRef.current;
     if (!canvas) return;
     const rect = canvas.getBoundingClientRect();
     dragOffset.current = { x: e.clientX - rect.left - node.x, y: e.clientY - rect.top - node.y };
     movingNode.current = node.id;
+    dragPointerId.current = e.pointerId;
     setSelectedNode(node.id);
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {
+      /* ignore */
+    }
   };
 
   useEffect(() => {
-    const handleMove = (e: MouseEvent) => {
+    const handleMove = (e: PointerEvent) => {
       const canvas = canvasRef.current;
       if (!canvas) return;
 
-      if (movingNode.current) {
+      if (movingNode.current && dragPointerId.current === e.pointerId) {
         const rect = canvas.getBoundingClientRect();
         const x = e.clientX - rect.left - dragOffset.current.x;
         const y = e.clientY - rect.top - dragOffset.current.y;
         setNodes(prev =>
           prev.map(n =>
             n.id === movingNode.current
-              ? { ...n, x: Math.max(0, Math.min(x, rect.width - 108)), y: Math.max(0, Math.min(y, rect.height - 72)) }
+              ? { ...n, x: Math.max(0, Math.min(x, rect.width - NODE_W)), y: Math.max(0, Math.min(y, rect.height - NODE_H)) }
               : n
           )
         );
@@ -473,19 +518,24 @@ export default function CloudArchPuzzleApp() {
       }
     };
 
-    const handleUp = () => {
-      movingNode.current = null;
+    const handleUp = (e: PointerEvent) => {
+      if (dragPointerId.current !== null && e.pointerId === dragPointerId.current) {
+        movingNode.current = null;
+        dragPointerId.current = null;
+      }
     };
 
-    window.addEventListener('mousemove', handleMove);
-    window.addEventListener('mouseup', handleUp);
+    document.addEventListener('pointermove', handleMove, { capture: true });
+    document.addEventListener('pointerup', handleUp, { capture: true });
+    document.addEventListener('pointercancel', handleUp, { capture: true });
     return () => {
-      window.removeEventListener('mousemove', handleMove);
-      window.removeEventListener('mouseup', handleUp);
+      document.removeEventListener('pointermove', handleMove, { capture: true });
+      document.removeEventListener('pointerup', handleUp, { capture: true });
+      document.removeEventListener('pointercancel', handleUp, { capture: true });
     };
   }, [connecting]);
 
-  const startConnect = (e: ReactMouseEvent<HTMLDivElement>, node: PlacedNode) => {
+  const startConnect = (e: ReactPointerEvent<HTMLDivElement>, node: PlacedNode) => {
     e.stopPropagation();
     if (connecting) {
       if (connecting.id !== node.id) {
@@ -559,11 +609,11 @@ export default function CloudArchPuzzleApp() {
     <div
       style={{
         width: '100%',
-        // Phase1AppScreen の上部UI（戻るボタン等）分だけ余白を引いて収まりを良くする
-        // 余白が残りやすいので、前回より控えめに引く
-        height: 'calc(100vh - 120px)',
-        minHeight: 520,
-        maxHeight: 'calc(100vh - 120px)',
+        maxWidth: '100vw',
+        boxSizing: 'border-box',
+        height: compact ? 'calc(100vh - 88px)' : 'calc(100vh - 120px)',
+        minHeight: compact ? 0 : 520,
+        maxHeight: compact ? 'calc(100vh - 88px)' : 'calc(100vh - 120px)',
         display: 'flex',
         flexDirection: 'column',
         background: 'linear-gradient(135deg, #fce4ec 0%, #e1f5fe 30%, #fff9c4 60%, #e8f5e9 100%)',
@@ -571,6 +621,7 @@ export default function CloudArchPuzzleApp() {
         color: '#263238',
         overflow: 'hidden',
         position: 'relative',
+        touchAction: 'manipulation',
       }}
     >
       <style>{`
@@ -600,6 +651,7 @@ export default function CloudArchPuzzleApp() {
           display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
           background: white; border: 2.5px solid; transition: box-shadow 0.2s, border-color 0.2s; user-select: none;
           animation: nodeBounce 0.3s ease; box-shadow: 0 3px 12px rgba(0,0,0,0.06);
+          touch-action: none;
         }
         .canvas-node:hover { z-index: 10; box-shadow: 0 8px 28px rgba(0,0,0,0.10); }
         .conn-port {
@@ -607,6 +659,7 @@ export default function CloudArchPuzzleApp() {
           width: 18px; height: 18px; border-radius: 50%; cursor: crosshair;
           border: 2.5px solid #f48fb1; background: white; transition: all 0.15s; z-index: 5;
           box-shadow: 0 2px 6px rgba(244,143,177,0.2);
+          touch-action: manipulation;
         }
         .conn-port:hover { background: #f48fb1; transform: translateX(-50%) scale(1.3); box-shadow: 0 3px 14px rgba(244,143,177,0.4); }
         .del-btn {
@@ -618,6 +671,9 @@ export default function CloudArchPuzzleApp() {
         }
         .canvas-node:hover .del-btn { opacity: 1; }
         .del-btn:hover { transform: scale(1.15); }
+        @media (hover: none), (pointer: coarse) {
+          .canvas-node .del-btn { opacity: 0.88; }
+        }
         .btn {
           padding: 8px 16px; border-radius: 20px; border: none; cursor: pointer; font-size: 13px;
           font-weight: 700; transition: all 0.2s; font-family: 'M PLUS Rounded 1c', sans-serif;
@@ -676,9 +732,11 @@ export default function CloudArchPuzzleApp() {
       <div
         style={{
           display: 'flex',
-          alignItems: 'center',
+          flexDirection: compact ? 'column' : 'row',
+          alignItems: compact ? 'stretch' : 'center',
           justifyContent: 'space-between',
-          padding: '10px 20px',
+          gap: compact ? 8 : 0,
+          padding: compact ? '8px 12px' : '10px 20px',
           background: 'rgba(255,255,255,0.72)',
           backdropFilter: 'blur(14px)',
           borderBottom: '2px solid rgba(244,143,177,0.08)',
@@ -686,15 +744,38 @@ export default function CloudArchPuzzleApp() {
           zIndex: 20,
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span style={{ fontSize: 26 }}>☁️</span>
-          <div>
-            <h1 style={{ fontSize: 18, color: '#880e4f', fontFamily: "'Hachi Maru Pop', cursive", fontWeight: 700, letterSpacing: '0.02em' }}>クラウドアーキテクチャパズル</h1>
-            <p style={{ fontSize: 13, color: '#6a1b9a', fontWeight: 600, marginTop: 2 }}>{ALL_COMPONENTS.length}種のコンポーネントで本格システム設計！</p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: compact ? 8 : 10, minWidth: 0 }}>
+          <span style={{ fontSize: compact ? 22 : 26, flexShrink: 0 }}>☁️</span>
+          <div style={{ minWidth: 0 }}>
+            <h1
+              style={{
+                fontSize: compact ? 15 : 18,
+                color: '#880e4f',
+                fontFamily: "'Hachi Maru Pop', cursive",
+                fontWeight: 700,
+                letterSpacing: '0.02em',
+                lineHeight: 1.25,
+              }}
+            >
+              クラウドアーキテクチャパズル
+            </h1>
+            {!compact && (
+              <p style={{ fontSize: 13, color: '#6a1b9a', fontWeight: 600, marginTop: 2 }}>
+                {ALL_COMPONENTS.length}種のコンポーネントで本格システム設計！
+              </p>
+            )}
           </div>
         </div>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <span className="badge">
+        <div
+          style={{
+            display: 'flex',
+            gap: 8,
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            justifyContent: compact ? 'flex-end' : 'flex-start',
+          }}
+        >
+          <span className="badge" style={compact ? { fontSize: 11, padding: '3px 10px' } : undefined}>
             {challenge.emoji} {challenge.difficulty}
           </span>
           <button
@@ -704,9 +785,11 @@ export default function CloudArchPuzzleApp() {
               background: 'white',
               color: '#ad1457',
               border: '2px solid #f48fb130',
+              padding: compact ? '7px 12px' : undefined,
+              fontSize: compact ? 12 : 13,
             }}
           >
-            📋 チャレンジ選択
+            {compact ? '📋 チャレンジ' : '📋 チャレンジ選択'}
           </button>
         </div>
       </div>
@@ -732,13 +815,15 @@ export default function CloudArchPuzzleApp() {
           <div
             className="white-card"
             style={{
-              padding: 24,
-              width: 560,
-              maxHeight: '85vh',
+              padding: compact ? 16 : 24,
+              width: 'min(560px, calc(100vw - 24px))',
+              maxWidth: '100%',
+              maxHeight: compact ? '90vh' : '85vh',
               overflow: 'auto',
+              WebkitOverflowScrolling: 'touch',
               animation: 'pop 0.3s ease',
               boxShadow: '0 20px 60px rgba(173,20,87,0.10)',
-              borderRadius: 24,
+              borderRadius: compact ? 18 : 24,
             }}
             onClick={e => e.stopPropagation()}
           >
@@ -797,17 +882,29 @@ export default function CloudArchPuzzleApp() {
         </div>
       )}
 
-      <div style={{ display: 'flex', flex: 1, minHeight: 0, overflow: 'hidden' }}>
+      <div
+        style={{
+          display: 'flex',
+          flex: 1,
+          minHeight: 0,
+          overflow: 'hidden',
+          flexDirection: compact ? 'column' : 'row',
+        }}
+      >
         {/* Sidebar - Components (categorized with search) */}
         <div
           style={{
-            width: 220,
+            order: compact ? 2 : 0,
+            width: compact ? '100%' : 220,
+            maxHeight: compact ? 'min(38vh, 260px)' : undefined,
             flexShrink: 0,
             display: 'flex',
             flexDirection: 'column',
             background: 'rgba(255,255,255,0.6)',
             backdropFilter: 'blur(12px)',
-            borderRight: '2px solid rgba(244,143,177,0.06)',
+            borderRight: compact ? 'none' : '2px solid rgba(244,143,177,0.06)',
+            borderTop: compact ? '2px solid rgba(244,143,177,0.08)' : 'none',
+            minHeight: compact ? 0 : undefined,
           }}
         >
           <div style={{ padding: '12px 12px 8px' }}>
@@ -817,7 +914,14 @@ export default function CloudArchPuzzleApp() {
               <input className="search-input" placeholder="検索..." value={searchText} onChange={e => setSearchText(e.target.value)} />
             </div>
           </div>
-          <div style={{ flex: 1, overflow: 'auto', padding: '2px 10px 10px' }}>
+          <div
+            style={{
+              flex: 1,
+              overflow: 'auto',
+              padding: '2px 10px 10px',
+              WebkitOverflowScrolling: 'touch',
+            }}
+          >
             {filteredCats.map(cat => (
               <div key={cat.name} style={{ marginBottom: 2 }}>
                 <div className="cat-header" onClick={() => toggleCat(cat.name)}>
@@ -842,8 +946,21 @@ export default function CloudArchPuzzleApp() {
                       <div
                         key={comp.type}
                         className="comp-card"
-                        draggable
-                        onDragStart={e => handleDragStart(e, comp)}
+                        draggable={!compact}
+                        onDragStart={compact ? undefined : e => handleDragStart(e, comp)}
+                        onClick={compact ? () => addComponentFromCatalog(comp) : undefined}
+                        role={compact ? 'button' : undefined}
+                        tabIndex={compact ? 0 : undefined}
+                        onKeyDown={
+                          compact
+                            ? e => {
+                                if (e.key === 'Enter' || e.key === ' ') {
+                                  e.preventDefault();
+                                  addComponentFromCatalog(comp);
+                                }
+                              }
+                            : undefined
+                        }
                       >
                         <div
                           style={{
@@ -899,27 +1016,57 @@ export default function CloudArchPuzzleApp() {
         </div>
 
         {/* Main Canvas Area */}
-        <div style={{ flex: 1, minWidth: 0, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        <div
+          style={{
+            order: compact ? 1 : 0,
+            flex: 1,
+            minWidth: 0,
+            minHeight: compact ? 200 : 0,
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden',
+          }}
+        >
           {/* Challenge Info Bar */}
           <div
             style={{
-              padding: '8px 18px',
+              padding: compact ? '8px 12px' : '8px 18px',
               background: 'rgba(255,255,255,0.5)',
               backdropFilter: 'blur(8px)',
               borderBottom: '2px solid rgba(244,143,177,0.05)',
               display: 'flex',
-              alignItems: 'center',
+              flexDirection: compact ? 'column' : 'row',
+              alignItems: compact ? 'stretch' : 'center',
               justifyContent: 'space-between',
+              gap: compact ? 10 : 0,
               flexShrink: 0,
             }}
           >
             <div style={{ flex: 1, minWidth: 0 }}>
-              <h2 style={{ fontSize: 16, color: '#263238', marginBottom: 2, fontFamily: "'M PLUS Rounded 1c', sans-serif", fontWeight: 800 }}>
+              <h2
+                style={{
+                  fontSize: compact ? 14 : 16,
+                  color: '#263238',
+                  marginBottom: 2,
+                  fontFamily: "'M PLUS Rounded 1c', sans-serif",
+                  fontWeight: 800,
+                  lineHeight: 1.3,
+                }}
+              >
                 {challenge.emoji} {challenge.title}
               </h2>
-              <p style={{ fontSize: 13, color: '#455a64', lineHeight: 1.5 }}>{challenge.description}</p>
+              <p style={{ fontSize: compact ? 12 : 13, color: '#455a64', lineHeight: 1.5 }}>{challenge.description}</p>
             </div>
-            <div style={{ display: 'flex', gap: 6, marginLeft: 12, flexShrink: 0 }}>
+            <div
+              style={{
+                display: 'flex',
+                gap: 6,
+                marginLeft: compact ? 0 : 12,
+                flexShrink: 0,
+                flexWrap: 'wrap',
+                justifyContent: compact ? 'stretch' : 'flex-end',
+              }}
+            >
               <button
                 className="btn"
                 onClick={() => setShowSolution(!showSolution)}
@@ -927,10 +1074,13 @@ export default function CloudArchPuzzleApp() {
                   background: showSolution ? '#fff3e0' : 'white',
                   color: '#f4a261',
                   border: '1.5px solid ' + (showSolution ? '#f4a261' : '#f4a26120'),
-                  fontSize: 13,
+                  fontSize: compact ? 12 : 13,
+                  padding: compact ? '7px 10px' : undefined,
+                  flex: compact ? 1 : undefined,
+                  minWidth: compact ? 0 : undefined,
                 }}
               >
-                💡 解答例
+                💡 {compact ? '解答' : '解答例'}
               </button>
               <button
                 className="btn"
@@ -939,10 +1089,13 @@ export default function CloudArchPuzzleApp() {
                   background: 'white',
                   color: '#e57373',
                   border: '1.5px solid #e5737320',
-                  fontSize: 13,
+                  fontSize: compact ? 12 : 13,
+                  padding: compact ? '7px 10px' : undefined,
+                  flex: compact ? 1 : undefined,
+                  minWidth: compact ? 0 : undefined,
                 }}
               >
-                🗑️ リセット
+                🗑️ {compact ? '消去' : 'リセット'}
               </button>
               <button
                 className="btn"
@@ -951,10 +1104,13 @@ export default function CloudArchPuzzleApp() {
                   background: 'linear-gradient(135deg, #f48fb1, #ff8a65)',
                   color: 'white',
                   border: 'none',
-                  fontSize: 13,
+                  fontSize: compact ? 12 : 13,
+                  padding: compact ? '7px 10px' : undefined,
+                  flex: compact ? 1 : undefined,
+                  minWidth: compact ? 0 : undefined,
                 }}
               >
-                ✅ 採点する！
+                ✅ {compact ? '採点' : '採点する！'}
               </button>
             </div>
           </div>
@@ -1005,10 +1161,23 @@ export default function CloudArchPuzzleApp() {
             }}
           >
             {nodes.length === 0 && !result && (
-              <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', textAlign: 'center', pointerEvents: 'none' }}>
-                <div style={{ fontSize: 52, marginBottom: 10, opacity: 0.3 }}>🧩</div>
-                <div style={{ fontSize: 17, color: '#c2185b', opacity: 0.75, fontFamily: "'M PLUS Rounded 1c', sans-serif", fontWeight: 800 }}>コンポーネントをここにドロップ！</div>
-                <div style={{ fontSize: 13, marginTop: 8, color: '#6a1b9a', opacity: 0.85, fontWeight: 600 }}>ノードの下の●ポートをクリックして接続線を引こう</div>
+              <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', textAlign: 'center', pointerEvents: 'none', padding: '0 12px', maxWidth: '100%' }}>
+                <div style={{ fontSize: compact ? 40 : 52, marginBottom: 10, opacity: 0.3 }}>🧩</div>
+                <div
+                  style={{
+                    fontSize: compact ? 14 : 17,
+                    color: '#c2185b',
+                    opacity: 0.75,
+                    fontFamily: "'M PLUS Rounded 1c', sans-serif",
+                    fontWeight: 800,
+                    lineHeight: 1.4,
+                  }}
+                >
+                  {compact ? '下の一覧をタップしてキャンバスに追加！' : 'コンポーネントをここにドロップ！'}
+                </div>
+                <div style={{ fontSize: compact ? 12 : 13, marginTop: 8, color: '#6a1b9a', opacity: 0.85, fontWeight: 600, lineHeight: 1.45 }}>
+                  {compact ? 'ノード下の●をタップして、もう一方の●で接続' : 'ノードの下の●ポートをクリックして接続線を引こう'}
+                </div>
               </div>
             )}
 
@@ -1089,11 +1258,13 @@ export default function CloudArchPuzzleApp() {
                   boxShadow: selectedNode === node.id ? `0 8px 28px ${node.color}25` : `0 3px 12px rgba(0,0,0,0.05)`,
                   zIndex: movingNode.current === node.id ? 20 : 2,
                 }}
-                onMouseDown={e => handleNodeMouseDown(e, node)}
+                onPointerDown={e => handleNodePointerDown(e, node)}
               >
                 <div className="topline" style={{ background: node.color, left: 14, right: 14, height: 3, borderRadius: '0 0 3px 3px' }} />
                 <button
+                  type="button"
                   className="del-btn"
+                  onPointerDown={e => e.stopPropagation()}
                   onClick={e => {
                     e.stopPropagation();
                     deleteNode(node.id);
@@ -1108,7 +1279,10 @@ export default function CloudArchPuzzleApp() {
 
                 <div
                   className="conn-port"
-                  onClick={e => startConnect(e, node)}
+                  onPointerDown={e => {
+                    e.stopPropagation();
+                    startConnect(e, node);
+                  }}
                   style={connecting?.id === node.id ? { background: '#f48fb1', transform: 'translateX(-50%) scale(1.3)' } : {}}
                 />
               </div>
@@ -1271,22 +1445,27 @@ export default function CloudArchPuzzleApp() {
       {/* Status Bar */}
       <div
         style={{
-          padding: '5px 20px',
+          padding: compact ? '6px 10px' : '5px 20px',
           background: 'rgba(255,255,255,0.6)',
           backdropFilter: 'blur(8px)',
           borderTop: '1.5px solid rgba(244,143,177,0.05)',
           display: 'flex',
+          flexDirection: compact ? 'column' : 'row',
+          gap: compact ? 4 : 0,
           justifyContent: 'space-between',
-          fontSize: 12,
+          alignItems: compact ? 'flex-start' : 'center',
+          fontSize: compact ? 11 : 12,
           color: '#4a148c',
           flexShrink: 0,
           fontWeight: 600,
         }}
       >
-        <span>
-          📦 {nodes.length} コンポーネント ・ 🔗 {connections.length} 接続 ・ 🎯 必要: {challenge.required.length}個 {challenge.connections.length}本
+        <span style={{ lineHeight: 1.35 }}>
+          📦 {nodes.length} ・ 🔗 {connections.length} ・ 🎯 {challenge.required.length}個 {challenge.connections.length}本
         </span>
-        <span>{connecting ? '🔗 接続先のポートをクリックしてね！' : 'ノード下の●をクリックで接続スタート ✨'}</span>
+        <span style={{ lineHeight: 1.35, opacity: compact ? 0.92 : 1 }}>
+          {connecting ? '🔗 接続先の●をタップ' : compact ? '●タップで接続 ✨' : 'ノード下の●をクリックで接続スタート ✨'}
+        </span>
       </div>
     </div>
   );
