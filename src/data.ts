@@ -4,11 +4,12 @@ export const appsData: SkillApp[] = [
   {
     id: 'cloud-arch-puzzle',
     title: 'クラウドアーキテクチャパズル',
-    description: 'AWS/Azure/GCPのサービスを5つの層に配置してアーキテクチャ構成図を完成させよう！',
+    description:
+      'DNS・ロードバランサー・API・データストアなど、クラウドでよく使われる役割のコンポーネントを配置して線でつなぎ、要件に合うアーキテクチャ構成を組み立てよう！',
     category: 'クラウド',
     difficulty: 2,
     status: 'available',
-    tags: ['AWS', 'Azure', 'GCP', 'アーキテクチャ'],
+    tags: ['クラウド', 'インフラ', 'アーキテクチャ'],
     icon: '☁️'
   },
   {

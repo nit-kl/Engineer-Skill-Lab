@@ -9,6 +9,10 @@
 body {
   background: linear-gradient(135deg, #ffe6e6 0%, #e6f2ff 33%, #ffffe6 66%, #e6ffe6 100%);
   background-attachment: fixed;
-  color: #333333;
+  color: #1a1a1a;
   min-height: 100vh;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }

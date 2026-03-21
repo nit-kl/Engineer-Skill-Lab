@@ -11,7 +11,11 @@ export type YoutubeEntry = {
   chapters?: YoutubeChapter[];
 };
 
+export type YoutubeRankMap = Record<Rank, YoutubeEntry | undefined>;
+
 export type YoutubeContent = {
-  rankToVideo: Record<Rank, YoutubeEntry | undefined>;
+  rankToVideo: YoutubeRankMap;
+  /** チャレンジ（レッスン）IDごとの上書き。キーは数値IDの文字列（例: "1"）。 */
+  byChallengeId?: Record<string, { rankToVideo: YoutubeRankMap }>;
 };
 

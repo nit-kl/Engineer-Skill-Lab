@@ -7,7 +7,7 @@ export function YoutubeEntryPoint(props: { content: YoutubeContent; rank: Rank }
 
   if (!entry) {
     return (
-      <div className="rounded-xl border border-gray-200 bg-white p-4 text-gray-600 text-sm">
+      <div className="rounded-xl border border-gray-200 bg-white p-4 text-gray-700 text-sm leading-relaxed">
         このランクに紐づく動画は準備中です。
       </div>
     );
@@ -15,7 +15,7 @@ export function YoutubeEntryPoint(props: { content: YoutubeContent; rank: Rank }
 
   if (!entry.videoId) {
     return (
-      <div className="rounded-xl border border-gray-200 bg-white p-4 text-gray-600 text-sm">
+      <div className="rounded-xl border border-gray-200 bg-white p-4 text-gray-700 text-sm leading-relaxed">
         YouTube 埋め込みは準備中です（動画ID未設定）。
         <div className="mt-2">
           <a className="text-pink-600 hover:underline" href={entry.url ?? '#'} target="_blank" rel="noreferrer">
@@ -28,7 +28,7 @@ export function YoutubeEntryPoint(props: { content: YoutubeContent; rank: Rank }
 
   return (
     <div className="rounded-2xl border border-gray-100 bg-white p-4">
-      <div className="font-bold text-gray-800 mb-3">結果→解説動画（YouTube）</div>
+      <div className="font-bold text-gray-900 mb-3 text-base">解説動画（YouTube）</div>
       <div className="aspect-video w-full overflow-hidden rounded-xl bg-black/5 border border-gray-100">
         <iframe
           title={`YouTube ${rank}`}
@@ -38,19 +38,6 @@ export function YoutubeEntryPoint(props: { content: YoutubeContent; rank: Rank }
           allowFullScreen
         />
       </div>
-
-      {entry.chapters?.length ? (
-        <div className="mt-3">
-          <div className="text-sm text-gray-600 mb-2">章立て</div>
-          <div className="space-y-1">
-            {entry.chapters.map(c => (
-              <div key={c.start} className="text-sm text-gray-700">
-                <span className="font-mono text-xs text-gray-500">{c.start}</span> {c.title}
-              </div>
-            ))}
-          </div>
-        </div>
-      ) : null}
     </div>
   );
 }
