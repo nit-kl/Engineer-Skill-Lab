@@ -58,6 +58,35 @@
           "chapters": [{ "start": "0:00", "title": "基本的なWebサイトの流れ（レッスン1）" }]
         }
       }
+    },
+    "2": {
+      "rankToVideo": {
+        "S": {
+          "videoId": "Wv0GDOtm8cM",
+          "url": "https://youtu.be/Wv0GDOtm8cM",
+          "chapters": [{ "start": "0:00", "title": "動的Webアプリの基本構成（レッスン2）" }]
+        },
+        "A": {
+          "videoId": "Wv0GDOtm8cM",
+          "url": "https://youtu.be/Wv0GDOtm8cM",
+          "chapters": [{ "start": "0:00", "title": "動的Webアプリの基本構成（レッスン2）" }]
+        },
+        "B": {
+          "videoId": "Wv0GDOtm8cM",
+          "url": "https://youtu.be/Wv0GDOtm8cM",
+          "chapters": [{ "start": "0:00", "title": "動的Webアプリの基本構成（レッスン2）" }]
+        },
+        "C": {
+          "videoId": "Wv0GDOtm8cM",
+          "url": "https://youtu.be/Wv0GDOtm8cM",
+          "chapters": [{ "start": "0:00", "title": "動的Webアプリの基本構成（レッスン2）" }]
+        },
+        "D": {
+          "videoId": "Wv0GDOtm8cM",
+          "url": "https://youtu.be/Wv0GDOtm8cM",
+          "chapters": [{ "start": "0:00", "title": "動的Webアプリの基本構成（レッスン2）" }]
+        }
+      }
     }
   }
 }
