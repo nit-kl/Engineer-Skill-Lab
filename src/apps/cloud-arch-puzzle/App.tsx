@@ -25,6 +25,12 @@ type PlacedNode = CatalogItem & { id: string; x: number; y: number };
 
 type Connection = { from: string; to: string };
 
+/** 正解のひとつ。alternativePatterns と併せてどれか1つに完全一致すれば満点 */
+type SolutionPattern = {
+  required: string[];
+  connections: Array<[string, string]>;
+};
+
 type Challenge = {
   id: number;
   title: string;
@@ -34,6 +40,8 @@ type Challenge = {
   description: string;
   required: string[];
   connections: Array<[string, string]>;
+  /** 同じ難易度・同じ部品集合で妥当な別の繋ぎ方 */
+  alternativePatterns?: SolutionPattern[];
   explanation: string;
 };
 
@@ -164,23 +172,40 @@ const CHALLENGES: Challenge[] = [
   },
   {
     id: 2,
-    title: 'ECサイト基本構成',
+    title: '動的Webアプリの基本構成',
     difficulty: '中級',
     diffColor: '#F4A261',
-    emoji: '🛒',
+    emoji: '💼',
     description:
-      '商品の閲覧・購入ができるECサイトを構築しよう！負荷分散・ビジネスロジック・データ永続化を実現する構成が必要だよ。※この問題では決済プロバイダをピースに含めないよ。注文・在庫などのルールはAPIサーバー側にある前提で組もう（本番の決済連携は「EC決済フルスタック」）。',
-    required: ['client', 'dns', 'lb', 'web', 'api', 'db', 'cache'],
+      'ログインしてデータを読み書きする、動的Webアプリの構成を組み立てよう！',
+    required: ['client', 'dns', 'lb', 'web', 'api', 'auth', 'db', 'cache'],
     connections: [
       ['client', 'dns'],
       ['dns', 'lb'],
       ['lb', 'web'],
-      ['web', 'api'],
+      ['lb', 'api'],
+      ['client', 'auth'],
+      ['api', 'auth'],
       ['api', 'db'],
       ['api', 'cache'],
     ],
     explanation:
-      'ブラウザはDNSでドメインを解決してからロードバランサーへ到達します。LBがトラフィックを分散し、Web→APIの経路で画面表示とビジネスロジックを処理。キャッシュで頻繁なクエリを高速化し、RDBでデータを永続化します。実務では決済もバックエンド（API）から外部サービスへ連携し、カード情報などはフロントに載せないのが普通。その外部決済を図に入れた版が「EC決済フルスタック」チャレンジです。',
+      'DNSで名前を解決してLBに入り、WebとAPIに振り分ける。ログインまわりはクライアントと認証の間、APIは認証・キャッシュ・RDBとつながる想定だよ。',
+    alternativePatterns: [
+      {
+        required: ['client', 'dns', 'lb', 'web', 'api', 'auth', 'db', 'cache'],
+        connections: [
+          ['client', 'dns'],
+          ['dns', 'lb'],
+          ['lb', 'web'],
+          ['web', 'api'],
+          ['client', 'auth'],
+          ['api', 'auth'],
+          ['api', 'db'],
+          ['api', 'cache'],
+        ],
+      },
+    ],
   },
   {
     id: 3,
@@ -203,6 +228,22 @@ const CHALLENGES: Challenge[] = [
     ],
     explanation:
       'アップロード系はDNSでAPI向けを解決してLB経由で入り、配信視聴は別ホスト名をDNSで解決してCDNへ向かう想定です（図ではDNSからCDNへ分岐）。APIが動画をストレージに保存しキューにジョブを投入。ワーカーが非同期エンコードし、ストレージをCDNのオリジンとして視聴者へ高速配信します。',
+    alternativePatterns: [
+      {
+        required: ['client', 'dns', 'lb', 'api', 'queue', 'worker', 'storage', 'cdn'],
+        connections: [
+          ['client', 'dns'],
+          ['dns', 'lb'],
+          ['lb', 'cdn'],
+          ['lb', 'api'],
+          ['api', 'storage'],
+          ['api', 'queue'],
+          ['queue', 'worker'],
+          ['worker', 'storage'],
+          ['storage', 'cdn'],
+        ],
+      },
+    ],
   },
   {
     id: 4,
@@ -225,6 +266,22 @@ const CHALLENGES: Challenge[] = [
     ],
     explanation:
       'DNSでサービス名を解決したうえでLBに到達し、LBがHTTPとWebSocket接続を振り分けます。WebSocketサーバーは認証・履歴保存のためにAPIと連携します（メッセージ永続化はAPI経由でNoSQLへ）。キャッシュでオンライン状態管理、プッシュ通知でオフラインユーザーに配信します。',
+    alternativePatterns: [
+      {
+        required: ['client', 'dns', 'lb', 'api', 'websocket', 'auth', 'nosql', 'cache', 'push'],
+        connections: [
+          ['client', 'dns'],
+          ['dns', 'lb'],
+          ['lb', 'api'],
+          ['lb', 'websocket'],
+          ['websocket', 'api'],
+          ['lb', 'auth'],
+          ['api', 'nosql'],
+          ['api', 'cache'],
+          ['api', 'push'],
+        ],
+      },
+    ],
   },
   {
     id: 5,
@@ -250,6 +307,39 @@ const CHALLENGES: Challenge[] = [
     ],
     explanation:
       'CDNを「静的配信とAPIオリジンへのルーティングをまとめるエッジ」とみなした一本化です。DNS→CDN→WAF→API Gatewayの順で保護しつつバックエンドへ。認証後、APIがRDBで在庫管理し外部決済APIと連携。注文確定後はキューで非同期にワーカーが確認メールを送信します。',
+    alternativePatterns: [
+      {
+        required: [
+          'client',
+          'dns',
+          'cdn',
+          'firewall',
+          'gateway',
+          'api',
+          'auth',
+          'db',
+          'cache',
+          'thirdparty',
+          'queue',
+          'worker',
+          'email',
+        ],
+        connections: [
+          ['client', 'dns'],
+          ['dns', 'cdn'],
+          ['cdn', 'gateway'],
+          ['gateway', 'firewall'],
+          ['firewall', 'api'],
+          ['api', 'auth'],
+          ['api', 'db'],
+          ['api', 'cache'],
+          ['api', 'thirdparty'],
+          ['api', 'queue'],
+          ['queue', 'worker'],
+          ['worker', 'email'],
+        ],
+      },
+    ],
   },
   {
     id: 6,
@@ -273,6 +363,23 @@ const CHALLENGES: Challenge[] = [
     ],
     explanation:
       'DNS→WAF→LBでセキュアにルーティング。認証でユーザー管理し、NoSQLでフィード、キャッシュで高速化、ストレージでメディア管理。検索エンジンで全文検索を提供し、プッシュ通知で「いいね」等を即時通知します。',
+    alternativePatterns: [
+      {
+        required: ['client', 'dns', 'firewall', 'lb', 'api', 'auth', 'nosql', 'cache', 'storage', 'search', 'push'],
+        connections: [
+          ['client', 'dns'],
+          ['dns', 'lb'],
+          ['lb', 'firewall'],
+          ['firewall', 'api'],
+          ['api', 'auth'],
+          ['api', 'nosql'],
+          ['api', 'cache'],
+          ['api', 'storage'],
+          ['api', 'search'],
+          ['api', 'push'],
+        ],
+      },
+    ],
   },
   {
     id: 7,
@@ -294,6 +401,20 @@ const CHALLENGES: Challenge[] = [
     ],
     explanation:
       'センサー・ゲートウェイ（図上はクライアントノード）からAPI Gateway経由でイベントストリームへ送信。ワーカーがリアルタイム処理して時系列DBに蓄積。ETLパイプラインでDWHに集約し分析。監視サービスが異常値を検知してアラートを発行します。',
+    alternativePatterns: [
+      {
+        required: ['client', 'gateway', 'stream', 'worker', 'tsdb', 'etl', 'dwh', 'monitor'],
+        connections: [
+          ['client', 'gateway'],
+          ['gateway', 'stream'],
+          ['stream', 'worker'],
+          ['worker', 'tsdb'],
+          ['tsdb', 'etl'],
+          ['etl', 'dwh'],
+          ['worker', 'monitor'],
+        ],
+      },
+    ],
   },
   {
     id: 8,
@@ -319,6 +440,39 @@ const CHALLENGES: Challenge[] = [
     ],
     explanation:
       '利用者はDNSでエンドポイントを解決してからWAFに到達します。CI/CDがコードをビルドしレジストリに保存、コンテナ基盤へデプロイ。WAF→API Gatewayで安全にルーティングし、コンテナ内のAPIサービスが処理。監視とログ管理で本番運用の可観測性を確保します。',
+    alternativePatterns: [
+      {
+        required: [
+          'client',
+          'dns',
+          'firewall',
+          'gateway',
+          'container',
+          'cicd',
+          'registry',
+          'api',
+          'db',
+          'queue',
+          'worker',
+          'monitor',
+          'logging',
+        ],
+        connections: [
+          ['client', 'dns'],
+          ['dns', 'firewall'],
+          ['firewall', 'gateway'],
+          ['gateway', 'container'],
+          ['container', 'api'],
+          ['api', 'db'],
+          ['api', 'queue'],
+          ['queue', 'worker'],
+          ['cicd', 'registry'],
+          ['registry', 'container'],
+          ['container', 'monitor'],
+          ['container', 'logging'],
+        ],
+      },
+    ],
   },
 ];
 
@@ -334,7 +488,67 @@ function catalogLabel(type: string): string {
 function formatSolutionExample(c: Challenge): string {
   const comps = c.required.map(catalogLabel).join('、');
   const flows = c.connections.map(([a, b]) => `${catalogLabel(a)} → ${catalogLabel(b)}`).join('\n');
-  return `使うコンポーネント: ${comps}\n\n接続（この組み合わせで結ぶ）:\n${flows}`;
+  const altNote =
+    c.alternativePatterns && c.alternativePatterns.length > 0
+      ? '\n\n※上記と部品が同じで、別の妥当なつなぎ方も正解になります。'
+      : '';
+  return `使うコンポーネント: ${comps}\n\n接続（この組み合わせで結ぶ）:\n${flows}${altNote}`;
+}
+
+function evaluateAgainstPattern(
+  nodes: PlacedNode[],
+  userConnections: Connection[],
+  pattern: SolutionPattern
+): { missingComps: string[]; missingConns: Array<[string, string]>; score: number } {
+  const placedTypes = new Set(nodes.map(n => n.type));
+  const missingComps = pattern.required.filter(r => !placedTypes.has(r));
+  const missingConns = pattern.connections.filter(([a, b]) => {
+    return !userConnections.some(c => {
+      const fn = nodes.find(n => n.id === c.from);
+      const tn = nodes.find(n => n.id === c.to);
+      if (!fn || !tn) return false;
+      return (fn.type === a && tn.type === b) || (fn.type === b && tn.type === a);
+    });
+  });
+  const reqN = pattern.required.length;
+  const connN = pattern.connections.length;
+  const score = Math.round(
+    ((reqN - missingComps.length) / reqN) * 50 + ((connN - missingConns.length) / connN) * 50
+  );
+  return { missingComps, missingConns, score };
+}
+
+/** 主解答と alternativePatterns のうち、最もスコアが高いパターンで採点する */
+function evaluateChallenge(
+  challenge: Challenge,
+  nodes: PlacedNode[],
+  userConnections: Connection[]
+): { score: number; missingComps: string[]; missingConns: Array<[string, string]> } {
+  const patterns: SolutionPattern[] = [
+    { required: challenge.required, connections: challenge.connections },
+    ...(challenge.alternativePatterns ?? []),
+  ];
+  let best = evaluateAgainstPattern(nodes, userConnections, patterns[0]);
+  for (let i = 1; i < patterns.length; i++) {
+    const next = evaluateAgainstPattern(nodes, userConnections, patterns[i]);
+    if (next.score > best.score) best = next;
+  }
+  return { score: best.score, missingComps: best.missingComps, missingConns: best.missingConns };
+}
+
+/** このチャレンジで置いてよいコンポーネント型（正解・別解パターンの和集合） */
+function allowedTypesForChallenge(ch: Challenge): Set<string> {
+  const s = new Set<string>();
+  const take = (p: SolutionPattern) => {
+    for (const t of p.required) s.add(t);
+    for (const [a, b] of p.connections) {
+      s.add(a);
+      s.add(b);
+    }
+  };
+  take({ required: ch.required, connections: ch.connections });
+  for (const alt of ch.alternativePatterns ?? []) take(alt);
+  return s;
 }
 
 function getRankByScore(score: number): Rank {
@@ -568,23 +782,7 @@ export default function CloudArchPuzzleApp() {
   const getCenter = (node: PlacedNode) => ({ x: node.x + 54, y: node.y + 36 });
 
   const checkAnswer = () => {
-    const placedTypes = new Set(nodes.map(n => n.type));
-    const missingComps = challenge.required.filter(r => !placedTypes.has(r));
-
-    const missingConns = challenge.connections.filter(([a, b]) => {
-      return !connections.some(c => {
-        const fn = nodes.find(n => n.id === c.from);
-        const tn = nodes.find(n => n.id === c.to);
-        if (!fn || !tn) return false;
-        return (fn.type === a && tn.type === b) || (fn.type === b && tn.type === a);
-      });
-    });
-
-    const score = Math.round(
-      ((challenge.required.length - missingComps.length) / challenge.required.length) * 50 +
-        ((challenge.connections.length - missingConns.length) / challenge.connections.length) * 50
-    );
-
+    const { score, missingComps, missingConns } = evaluateChallenge(challenge, nodes, connections);
     setResult({ score, missingComps, missingConns });
     if (score === 100) setCelebrateAnim(true);
   };
@@ -593,18 +791,23 @@ export default function CloudArchPuzzleApp() {
 
   const toggleCat = (name: string) => setExpandedCats(prev => ({ ...prev, [name]: !prev[name] }));
 
+  const allowedTypes = useMemo(() => allowedTypesForChallenge(challenge), [challenge]);
+
   const filteredCats = useMemo(() => {
     return CATEGORIES.map(cat => ({
       ...cat,
       items: cat.items.filter(
         item =>
-          !searchText ||
-          item.label.includes(searchText) ||
-          item.desc.includes(searchText) ||
-          item.type.toLowerCase().includes(searchText.toLowerCase())
+          allowedTypes.has(item.type) &&
+          (!searchText ||
+            item.label.includes(searchText) ||
+            item.desc.includes(searchText) ||
+            item.type.toLowerCase().includes(searchText.toLowerCase()))
       ),
     })).filter(cat => cat.items.length > 0);
-  }, [searchText]);
+  }, [searchText, allowedTypes]);
+
+  const catalogItemCount = useMemo(() => filteredCats.reduce((n, c) => n + c.items.length, 0), [filteredCats]);
 
   return (
     <div
@@ -1012,7 +1215,7 @@ export default function CloudArchPuzzleApp() {
               fontWeight: 600,
             }}
           >
-            全{ALL_COMPONENTS.length}種 / {CATEGORIES.length}カテゴリ
+            この問題 {catalogItemCount}種 / {filteredCats.length}カテゴリ
           </div>
         </div>
 
@@ -1283,6 +1486,10 @@ export default function CloudArchPuzzleApp() {
                   onPointerDown={e => {
                     e.stopPropagation();
                     startConnect(e, node);
+                  }}
+                  onClick={e => {
+                    /* pointerdown で接続開始後、click がキャンバスへバブルすると connecting が解除される */
+                    e.stopPropagation();
                   }}
                   style={connecting?.id === node.id ? { background: '#f48fb1', transform: 'translateX(-50%) scale(1.3)' } : {}}
                 />
