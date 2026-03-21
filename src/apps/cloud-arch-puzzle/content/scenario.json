@@ -1,10 +1,5 @@
 {
   "layers": ["入口", "アプリ", "ネットワーク", "計算", "データ"],
-  "clouds": [
-    { "id": "aws", "label": "AWS" },
-    { "id": "azure", "label": "Azure" },
-    { "id": "gcp", "label": "GCP" }
-  ],
   "questions": [
     { "id": "q1", "label": "問題 1" },
     { "id": "q2", "label": "問題 2" },
@@ -12,167 +7,73 @@
   ],
   "patterns": [
     {
-      "id": "q1-aws",
+      "id": "q1",
       "questionId": "q1",
-      "cloudId": "aws",
-      "title": "AWSアーキテクチャ",
+      "title": "基本5層の対応",
       "options": [
-        { "id": "alb", "label": "ALB（入口）" },
-        { "id": "api-gw", "label": "API Gateway（アプリ）" },
-        { "id": "vpc", "label": "VPC（ネットワーク）" },
-        { "id": "ec2", "label": "EC2（計算）" },
-        { "id": "s3", "label": "S3（データ）" },
-        { "id": "nlb", "label": "NLB（デコイ）" },
-        { "id": "lambda", "label": "Lambda（デコイ）" },
-        { "id": "cloudfront", "label": "CloudFront（デコイ）" },
-        { "id": "rds", "label": "RDS（デコイ）" }
+        { "id": "lb", "label": "ロードバランサー（入口）" },
+        { "id": "api-gw", "label": "APIゲートウェイ（アプリ）" },
+        { "id": "vpc", "label": "仮想ネットワーク／VPC（ネットワーク）" },
+        { "id": "compute", "label": "仮想マシン・インスタンス（計算）" },
+        { "id": "object-store", "label": "オブジェクトストレージ（データ）" },
+        { "id": "decoy-l4", "label": "L4ロードバランサー（デコイ）" },
+        { "id": "decoy-faas", "label": "関数実行サービス（デコイ）" },
+        { "id": "decoy-cdn", "label": "CDNエッジ（デコイ）" },
+        { "id": "decoy-rdb", "label": "リレーショナルDB（デコイ）" }
       ],
-      "solution": { "入口": "alb", "アプリ": "api-gw", "ネットワーク": "vpc", "計算": "ec2", "データ": "s3" }
+      "solution": {
+        "入口": "lb",
+        "アプリ": "api-gw",
+        "ネットワーク": "vpc",
+        "計算": "compute",
+        "データ": "object-store"
+      }
     },
     {
-      "id": "q1-azure",
-      "questionId": "q1",
-      "cloudId": "azure",
-      "title": "Azureアーキテクチャ",
-      "options": [
-        { "id": "appgw", "label": "Application Gateway（入口）" },
-        { "id": "apim", "label": "API Management（アプリ）" },
-        { "id": "vnet", "label": "VNet（ネットワーク）" },
-        { "id": "vm", "label": "Virtual Machines（計算）" },
-        { "id": "blob", "label": "Blob Storage（データ）" },
-        { "id": "frontdoor", "label": "Front Door（デコイ）" },
-        { "id": "functions", "label": "Functions（デコイ）" },
-        { "id": "aks", "label": "AKS（デコイ）" },
-        { "id": "sql", "label": "SQL Database（デコイ）" }
-      ],
-      "solution": { "入口": "appgw", "アプリ": "apim", "ネットワーク": "vnet", "計算": "vm", "データ": "blob" }
-    },
-    {
-      "id": "q1-gcp",
-      "questionId": "q1",
-      "cloudId": "gcp",
-      "title": "GCPアーキテクチャ",
-      "options": [
-        { "id": "gclb", "label": "Cloud Load Balancing（入口）" },
-        { "id": "api-gw-gcp", "label": "API Gateway（アプリ）" },
-        { "id": "gcp-vpc", "label": "VPC Network（ネットワーク）" },
-        { "id": "gce", "label": "Compute Engine（計算）" },
-        { "id": "gcs", "label": "Cloud Storage（データ）" },
-        { "id": "cloudrun", "label": "Cloud Run（デコイ）" },
-        { "id": "functions", "label": "Cloud Functions（デコイ）" },
-        { "id": "gke", "label": "GKE（デコイ）" },
-        { "id": "bq", "label": "BigQuery（デコイ）" }
-      ],
-      "solution": { "入口": "gclb", "アプリ": "api-gw-gcp", "ネットワーク": "gcp-vpc", "計算": "gce", "データ": "gcs" }
-    },
-    {
-      "id": "q2-aws",
+      "id": "q2",
       "questionId": "q2",
-      "cloudId": "aws",
-      "title": "AWSアーキテクチャ",
+      "title": "同じ5層（別デコイ）",
       "options": [
-        { "id": "alb", "label": "ALB（入口）" },
-        { "id": "api-gw", "label": "API Gateway（アプリ）" },
-        { "id": "vpc", "label": "VPC（ネットワーク）" },
-        { "id": "ec2", "label": "EC2（計算）" },
-        { "id": "s3", "label": "S3（データ）" },
-        { "id": "ecs", "label": "ECS（デコイ）" },
-        { "id": "dynamodb", "label": "DynamoDB（デコイ）" },
-        { "id": "iam", "label": "IAM（デコイ）" },
-        { "id": "route53", "label": "Route 53（デコイ）" }
+        { "id": "lb", "label": "ロードバランサー（入口）" },
+        { "id": "api-gw", "label": "APIゲートウェイ（アプリ）" },
+        { "id": "vpc", "label": "仮想ネットワーク／VPC（ネットワーク）" },
+        { "id": "compute", "label": "仮想マシン・インスタンス（計算）" },
+        { "id": "object-store", "label": "オブジェクトストレージ（データ）" },
+        { "id": "decoy-orchestrator", "label": "コンテナオーケストレータ（デコイ）" },
+        { "id": "decoy-nosql", "label": "NoSQLデータベース（デコイ）" },
+        { "id": "decoy-dns", "label": "権威DNSのみ（デコイ）" },
+        { "id": "decoy-identity", "label": "アイデンティティ管理（デコイ）" }
       ],
-      "solution": { "入口": "alb", "アプリ": "api-gw", "ネットワーク": "vpc", "計算": "ec2", "データ": "s3" }
+      "solution": {
+        "入口": "lb",
+        "アプリ": "api-gw",
+        "ネットワーク": "vpc",
+        "計算": "compute",
+        "データ": "object-store"
+      }
     },
     {
-      "id": "q2-azure",
-      "questionId": "q2",
-      "cloudId": "azure",
-      "title": "Azureアーキテクチャ",
-      "options": [
-        { "id": "appgw", "label": "Application Gateway（入口）" },
-        { "id": "apim", "label": "API Management（アプリ）" },
-        { "id": "vnet", "label": "VNet（ネットワーク）" },
-        { "id": "vm", "label": "Virtual Machines（計算）" },
-        { "id": "blob", "label": "Blob Storage（データ）" },
-        { "id": "cosmos", "label": "Cosmos DB（デコイ）" },
-        { "id": "storageaccount", "label": "Storage Account（デコイ）" },
-        { "id": "eventhub", "label": "Event Hubs（デコイ）" },
-        { "id": "keyvault", "label": "Key Vault（デコイ）" }
-      ],
-      "solution": { "入口": "appgw", "アプリ": "apim", "ネットワーク": "vnet", "計算": "vm", "データ": "blob" }
-    },
-    {
-      "id": "q2-gcp",
-      "questionId": "q2",
-      "cloudId": "gcp",
-      "title": "GCPアーキテクチャ",
-      "options": [
-        { "id": "gclb", "label": "Cloud Load Balancing（入口）" },
-        { "id": "api-gw-gcp", "label": "API Gateway（アプリ）" },
-        { "id": "gcp-vpc", "label": "VPC Network（ネットワーク）" },
-        { "id": "gce", "label": "Compute Engine（計算）" },
-        { "id": "gcs", "label": "Cloud Storage（データ）" },
-        { "id": "pubsub", "label": "Pub/Sub（デコイ）" },
-        { "id": "spanner", "label": "Cloud Spanner（デコイ）" },
-        { "id": "kms", "label": "Cloud KMS（デコイ）" },
-        { "id": "secretmanager", "label": "Secret Manager（デコイ）" }
-      ],
-      "solution": { "入口": "gclb", "アプリ": "api-gw-gcp", "ネットワーク": "gcp-vpc", "計算": "gce", "データ": "gcs" }
-    },
-    {
-      "id": "q3-aws",
+      "id": "q3",
       "questionId": "q3",
-      "cloudId": "aws",
-      "title": "AWSアーキテクチャ",
+      "title": "同じ5層（運用・セキュリティ系デコイ）",
       "options": [
-        { "id": "alb", "label": "ALB（入口）" },
-        { "id": "api-gw", "label": "API Gateway（アプリ）" },
-        { "id": "vpc", "label": "VPC（ネットワーク）" },
-        { "id": "ec2", "label": "EC2（計算）" },
-        { "id": "s3", "label": "S3（データ）" },
-        { "id": "waf", "label": "WAF（デコイ）" },
-        { "id": "secretsmanager", "label": "Secrets Manager（デコイ）" },
-        { "id": "kinesis", "label": "Kinesis（デコイ）" },
-        { "id": "efs", "label": "EFS（デコイ）" }
+        { "id": "lb", "label": "ロードバランサー（入口）" },
+        { "id": "api-gw", "label": "APIゲートウェイ（アプリ）" },
+        { "id": "vpc", "label": "仮想ネットワーク／VPC（ネットワーク）" },
+        { "id": "compute", "label": "仮想マシン・インスタンス（計算）" },
+        { "id": "object-store", "label": "オブジェクトストレージ（データ）" },
+        { "id": "decoy-waf-only", "label": "WAF単体（デコイ）" },
+        { "id": "decoy-secrets", "label": "シークレット管理（デコイ）" },
+        { "id": "decoy-stream", "label": "データストリーム（デコイ）" },
+        { "id": "decoy-nfs", "label": "共有ファイルストレージ（デコイ）" }
       ],
-      "solution": { "入口": "alb", "アプリ": "api-gw", "ネットワーク": "vpc", "計算": "ec2", "データ": "s3" }
-    },
-    {
-      "id": "q3-azure",
-      "questionId": "q3",
-      "cloudId": "azure",
-      "title": "Azureアーキテクチャ",
-      "options": [
-        { "id": "appgw", "label": "Application Gateway（入口）" },
-        { "id": "apim", "label": "API Management（アプリ）" },
-        { "id": "vnet", "label": "VNet（ネットワーク）" },
-        { "id": "vm", "label": "Virtual Machines（計算）" },
-        { "id": "blob", "label": "Blob Storage（データ）" },
-        { "id": "trafficmanager", "label": "Traffic Manager（デコイ）" },
-        { "id": "appinsights", "label": "Application Insights（デコイ）" },
-        { "id": "networkwatcher", "label": "Network Watcher（デコイ）" },
-        { "id": "monitor", "label": "Azure Monitor（デコイ）" }
-      ],
-      "solution": { "入口": "appgw", "アプリ": "apim", "ネットワーク": "vnet", "計算": "vm", "データ": "blob" }
-    },
-    {
-      "id": "q3-gcp",
-      "questionId": "q3",
-      "cloudId": "gcp",
-      "title": "GCPアーキテクチャ",
-      "options": [
-        { "id": "gclb", "label": "Cloud Load Balancing（入口）" },
-        { "id": "api-gw-gcp", "label": "API Gateway（アプリ）" },
-        { "id": "gcp-vpc", "label": "VPC Network（ネットワーク）" },
-        { "id": "gce", "label": "Compute Engine（計算）" },
-        { "id": "gcs", "label": "Cloud Storage（データ）" },
-        { "id": "logings", "label": "Cloud Logging（デコイ）" },
-        { "id": "monitoring", "label": "Cloud Monitoring（デコイ）" },
-        { "id": "armor", "label": "Security Armor（デコイ）" },
-        { "id": "artifact", "label": "Artifact Registry（デコイ）" }
-      ],
-      "solution": { "入口": "gclb", "アプリ": "api-gw-gcp", "ネットワーク": "gcp-vpc", "計算": "gce", "データ": "gcs" }
+      "solution": {
+        "入口": "lb",
+        "アプリ": "api-gw",
+        "ネットワーク": "vpc",
+        "計算": "compute",
+        "データ": "object-store"
+      }
     }
   ]
 }
-
