@@ -92,7 +92,7 @@ export default function App() {
                 <div className="w-10 h-10 bg-gradient-to-br from-pink-400 to-orange-400 rounded-xl flex items-center justify-center text-white shadow-md">
                   <Sparkles size={20} />
                 </div>
-                <h1 className="text-2xl font-display font-bold bg-clip-text text-transparent bg-gradient-to-r from-pink-500 to-violet-500 hidden sm:block">
+                <h1 className="text-2xl font-display font-bold bg-clip-text text-transparent bg-gradient-to-r from-pink-600 to-violet-700 hidden sm:block drop-shadow-sm">
                   Engineer Skill Lab
                 </h1>
               </div>
@@ -105,7 +105,7 @@ export default function App() {
                     placeholder="アプリやスキルを検索..." 
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 rounded-full bg-white/50 border border-gray-200 focus:outline-none focus:ring-2 focus:ring-pink-400 focus:bg-white transition-all shadow-inner"
+                    className="w-full pl-10 pr-4 py-2 rounded-full bg-white/90 border border-gray-300 text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-pink-400 focus:bg-white transition-all shadow-inner"
                   />
                 </div>
               </div>
@@ -121,7 +121,7 @@ export default function App() {
               <motion.h2 
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="text-4xl md:text-5xl font-display font-bold text-gray-800 mb-4"
+                className="text-4xl md:text-5xl font-sans font-bold text-gray-900 tracking-tight mb-4"
               >
                 エンジニアスキルを<br className="sm:hidden" />ゲームで楽しく鍛えよう！
               </motion.h2>
@@ -129,7 +129,7 @@ export default function App() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.1 }}
-                className="text-gray-600 max-w-2xl mx-auto text-lg"
+                className="text-gray-700 max-w-2xl mx-auto text-lg leading-relaxed"
               >
                 実践的なエンジニアリングスキルをパズル・シミュレーション・RPGで習得するポータルサイト
               </motion.p>
@@ -209,7 +209,7 @@ export default function App() {
                                 PLAY NOW
                               </span>
                             ) : (
-                              <span className="px-3 py-1 bg-gray-100 text-gray-500 text-xs font-medium rounded-full flex items-center gap-1">
+                              <span className="px-3 py-1 bg-gray-100 text-gray-600 text-xs font-medium rounded-full flex items-center gap-1">
                                 <Clock size={12} />
                                 Coming Soon
                               </span>
@@ -226,21 +226,21 @@ export default function App() {
                           </div>
                         </div>
 
-                        <h3 className="text-xl font-display font-bold text-gray-800 mb-2 line-clamp-2">
+                        <h3 className="text-xl font-sans font-bold text-gray-900 mb-2 line-clamp-2">
                           {app.title}
                         </h3>
-                        <p className="text-gray-600 text-sm mb-4 flex-1 line-clamp-3">
+                        <p className="text-gray-700 text-sm leading-relaxed mb-4 flex-1 line-clamp-3">
                           {app.description}
                         </p>
 
                         <div className="flex flex-wrap gap-2 mt-auto">
                           {app.tags.slice(0, 3).map(tag => (
-                            <span key={tag} className="px-2 py-1 bg-gray-50 border border-gray-100 text-gray-500 text-xs rounded-md">
+                            <span key={tag} className="px-2 py-1 bg-gray-50 border border-gray-100 text-gray-600 text-xs rounded-md">
                               #{tag}
                             </span>
                           ))}
                           {app.tags.length > 3 && (
-                            <span className="px-2 py-1 bg-gray-50 border border-gray-100 text-gray-500 text-xs rounded-md">
+                            <span className="px-2 py-1 bg-gray-50 border border-gray-100 text-gray-600 text-xs rounded-md">
                               +{app.tags.length - 3}
                             </span>
                           )}
@@ -253,8 +253,8 @@ export default function App() {
             ) : (
               <div className="text-center py-20">
                 <div className="text-6xl mb-4">🔍</div>
-                <h3 className="text-xl font-bold text-gray-700 mb-2">見つかりませんでした</h3>
-                <p className="text-gray-500">検索条件を変更して再度お試しください。</p>
+                <h3 className="text-xl font-bold text-gray-900 mb-2">見つかりませんでした</h3>
+                <p className="text-gray-600">検索条件を変更して再度お試しください。</p>
               </div>
             )}
 
@@ -309,30 +309,30 @@ export default function App() {
                             {DIFFICULTY_CONFIG[selectedApp.difficulty].label}
                           </span>
                           {selectedApp.status !== 'available' && (
-                            <span className="px-3 py-1 bg-gray-100 text-gray-500 text-xs font-medium rounded-full flex items-center gap-1">
+                            <span className="px-3 py-1 bg-gray-100 text-gray-600 text-xs font-medium rounded-full flex items-center gap-1">
                               <Clock size={12} />
                               Coming Soon
                             </span>
                           )}
                         </div>
-                        <h2 className="text-2xl md:text-3xl font-display font-bold text-gray-800">
+                        <h2 className="text-2xl md:text-3xl font-sans font-bold text-gray-900">
                           {selectedApp.title}
                         </h2>
                       </div>
                     </div>
 
                     <div className="bg-gray-50 rounded-2xl p-6 mb-6">
-                      <h4 className="font-bold text-gray-700 mb-2">ミッション概要</h4>
-                      <p className="text-gray-600 leading-relaxed">
+                      <h4 className="font-bold text-gray-800 mb-2">ミッション概要</h4>
+                      <p className="text-gray-700 leading-relaxed">
                         {selectedApp.description}
                       </p>
                     </div>
 
                     <div className="mb-8">
-                      <h4 className="font-bold text-gray-700 mb-3">習得できるスキル・タグ</h4>
+                      <h4 className="font-bold text-gray-800 mb-3">習得できるスキル・タグ</h4>
                       <div className="flex flex-wrap gap-2">
                         {selectedApp.tags.map(tag => (
-                          <span key={tag} className="px-3 py-1.5 bg-white border border-gray-200 text-gray-600 text-sm rounded-lg shadow-sm">
+                          <span key={tag} className="px-3 py-1.5 bg-white border border-gray-200 text-gray-700 text-sm rounded-lg shadow-sm">
                             # {tag}
                           </span>
                         ))}
@@ -352,7 +352,7 @@ export default function App() {
                           ゲームをプレイする
                         </button>
                       ) : (
-                        <div className="w-full sm:w-auto px-8 py-4 bg-gray-100 text-gray-500 font-bold rounded-2xl flex items-center justify-center gap-2 text-lg border-2 border-dashed border-gray-300">
+                        <div className="w-full sm:w-auto px-8 py-4 bg-gray-100 text-gray-600 font-bold rounded-2xl flex items-center justify-center gap-2 text-lg border-2 border-dashed border-gray-300">
                           <Clock size={20} />
                           Coming Soon（リリースをお待ちください）
                         </div>

@@ -551,7 +551,7 @@ export default function CloudArchPuzzleApp() {
         flexDirection: 'column',
         background: 'linear-gradient(135deg, #fce4ec 0%, #e1f5fe 30%, #fff9c4 60%, #e8f5e9 100%)',
         fontFamily: "'M PLUS Rounded 1c', 'Noto Sans JP', sans-serif",
-        color: '#5d4037',
+        color: '#263238',
         overflow: 'hidden',
         position: 'relative',
       }}
@@ -593,23 +593,23 @@ export default function CloudArchPuzzleApp() {
         }
         .conn-port:hover { background: #f48fb1; transform: translateX(-50%) scale(1.3); box-shadow: 0 3px 14px rgba(244,143,177,0.4); }
         .del-btn {
-          position: absolute; top: -7px; right: -7px; width: 20px; height: 20px;
+          position: absolute; top: -7px; right: -7px; width: 22px; height: 22px;
           border-radius: 50%; background: linear-gradient(135deg, #ef5350, #e53935); color: white; border: 2px solid white;
-          font-size: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+          font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center;
           opacity: 0; transition: all 0.15s; z-index: 6; line-height: 1;
           box-shadow: 0 2px 8px rgba(239,83,80,0.25);
         }
         .canvas-node:hover .del-btn { opacity: 1; }
         .del-btn:hover { transform: scale(1.15); }
         .btn {
-          padding: 7px 15px; border-radius: 20px; border: none; cursor: pointer; font-size: 12px;
+          padding: 8px 16px; border-radius: 20px; border: none; cursor: pointer; font-size: 13px;
           font-weight: 700; transition: all 0.2s; font-family: 'M PLUS Rounded 1c', sans-serif;
           box-shadow: 0 2px 6px rgba(0,0,0,0.05);
         }
         .btn:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(0,0,0,0.09); }
         .btn:active { transform: scale(0.97); }
         .badge {
-          font-size: 10px; padding: 3px 10px; border-radius: 20px; font-weight: 700;
+          font-size: 12px; padding: 4px 12px; border-radius: 20px; font-weight: 700;
           background: linear-gradient(135deg, #f48fb1, #ff8a65); color: white;
           box-shadow: 0 2px 5px rgba(244,143,177,0.25);
         }
@@ -631,11 +631,11 @@ export default function CloudArchPuzzleApp() {
         }
         .cat-header:hover { background: rgba(244,143,177,0.06); }
         .search-input {
-          width: 100%; padding: 7px 10px 7px 30px; border-radius: 12px; border: 1.5px solid #f48fb130;
-          font-size: 11px; font-family: inherit; outline: none; background: white; color: #37474f;
+          width: 100%; padding: 8px 10px 8px 32px; border-radius: 12px; border: 1.5px solid #f48fb130;
+          font-size: 14px; font-family: inherit; outline: none; background: white; color: #263238;
           transition: border-color 0.2s;
         }
-        .search-input::placeholder { color: #ce93d8; }
+        .search-input::placeholder { color: #9575cd; }
         .search-input:focus { border-color: #f48fb1; }
       `}</style>
 
@@ -672,8 +672,8 @@ export default function CloudArchPuzzleApp() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <span style={{ fontSize: 26 }}>☁️</span>
           <div>
-            <h1 style={{ fontSize: 16, color: '#ad1457', fontFamily: "'Hachi Maru Pop', cursive" }}>クラウドアーキテクチャパズル</h1>
-            <p style={{ fontSize: 10, color: '#ab47bc', fontWeight: 500, marginTop: 1 }}>{ALL_COMPONENTS.length}種のコンポーネントで本格システム設計！</p>
+            <h1 style={{ fontSize: 18, color: '#880e4f', fontFamily: "'Hachi Maru Pop', cursive", fontWeight: 700, letterSpacing: '0.02em' }}>クラウドアーキテクチャパズル</h1>
+            <p style={{ fontSize: 13, color: '#6a1b9a', fontWeight: 600, marginTop: 2 }}>{ALL_COMPONENTS.length}種のコンポーネントで本格システム設計！</p>
           </div>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -726,8 +726,8 @@ export default function CloudArchPuzzleApp() {
             onClick={e => e.stopPropagation()}
           >
             <div className="topline" style={{ background: 'linear-gradient(90deg, #f48fb1, #ff8a65)' }} />
-            <h2 style={{ fontSize: 18, color: '#ad1457', marginBottom: 4, fontFamily: "'Hachi Maru Pop', cursive" }}>🧩 チャレンジを選択</h2>
-            <p style={{ fontSize: 11, color: '#ab47bc', marginBottom: 16, fontWeight: 500 }}>
+            <h2 style={{ fontSize: 20, color: '#880e4f', marginBottom: 6, fontFamily: "'M PLUS Rounded 1c', sans-serif", fontWeight: 800 }}>🧩 チャレンジを選択</h2>
+            <p style={{ fontSize: 14, color: '#4a148c', marginBottom: 16, fontWeight: 500, lineHeight: 1.5 }}>
               全{CHALLENGES.length}問！難易度別にアーキテクチャ設計に挑戦しよう
             </p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -743,11 +743,11 @@ export default function CloudArchPuzzleApp() {
                 >
                   <div className="topline" style={{ background: ch.diffColor }} />
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                    <span style={{ fontWeight: 700, fontSize: 14, color: '#37474f' }}>
+                    <span style={{ fontWeight: 700, fontSize: 15, color: '#263238' }}>
                       {ch.emoji} {ch.title}
                     </span>
                     <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                      <span style={{ fontSize: 10, color: '#90a4ae' }}>
+                      <span style={{ fontSize: 12, color: '#546e7a' }}>
                         {ch.required.length}個 / {ch.connections.length}本
                       </span>
                       <span className="badge" style={{ background: `linear-gradient(135deg, ${ch.diffColor}, ${ch.diffColor}bb)` }}>
@@ -755,17 +755,17 @@ export default function CloudArchPuzzleApp() {
                       </span>
                     </div>
                   </div>
-                  <p style={{ fontSize: 11, color: '#78909c', lineHeight: 1.55 }}>{ch.description}</p>
+                  <p style={{ fontSize: 13, color: '#455a64', lineHeight: 1.6 }}>{ch.description}</p>
                   <div style={{ display: 'flex', gap: 4, marginTop: 7, flexWrap: 'wrap' }}>
                     {ch.required.map(r => (
                       <span
                         key={r}
                         style={{
-                          fontSize: 9,
-                          padding: '2px 8px',
+                          fontSize: 11,
+                          padding: '3px 9px',
                           borderRadius: 10,
                           background: '#fce4ec',
-                          color: '#ad1457',
+                          color: '#880e4f',
                           fontWeight: 600,
                         }}
                       >
@@ -794,7 +794,7 @@ export default function CloudArchPuzzleApp() {
           }}
         >
           <div style={{ padding: '12px 12px 8px' }}>
-            <h3 style={{ fontSize: 13, color: '#ad1457', fontFamily: "'Hachi Maru Pop', cursive", marginBottom: 8 }}>🧱 コンポーネント</h3>
+            <h3 style={{ fontSize: 15, color: '#880e4f', fontFamily: "'M PLUS Rounded 1c', sans-serif", fontWeight: 800, marginBottom: 8 }}>🧱 コンポーネント</h3>
             <div style={{ position: 'relative' }}>
               <span style={{ position: 'absolute', left: 9, top: '50%', transform: 'translateY(-50%)', fontSize: 13, opacity: 0.4 }}>🔍</span>
               <input className="search-input" placeholder="検索..." value={searchText} onChange={e => setSearchText(e.target.value)} />
@@ -806,18 +806,18 @@ export default function CloudArchPuzzleApp() {
                 <div className="cat-header" onClick={() => toggleCat(cat.name)}>
                   <span
                     style={{
-                      fontSize: 9,
-                      color: '#ab47bc',
+                      fontSize: 11,
+                      color: '#7b1fa2',
                       transition: 'transform 0.2s',
                       transform: expandedCats[cat.name] ? 'rotate(90deg)' : 'rotate(0deg)',
                     }}
                   >
                     ▶
                   </span>
-                  <span style={{ fontSize: 12, fontWeight: 700, color: '#6a1b9a' }}>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: '#4a148c' }}>
                     {cat.icon} {cat.name}
                   </span>
-                  <span style={{ fontSize: 9, color: '#ce93d8', marginLeft: 'auto' }}>{cat.items.length}</span>
+                  <span style={{ fontSize: 11, color: '#8e24aa', marginLeft: 'auto', fontWeight: 600 }}>{cat.items.length}</span>
                 </div>
                 {expandedCats[cat.name] && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '2px 0 4px 6px' }}>
@@ -846,9 +846,9 @@ export default function CloudArchPuzzleApp() {
                         <div style={{ minWidth: 0 }}>
                           <div
                             style={{
-                              fontSize: 11,
+                              fontSize: 13,
                               fontWeight: 700,
-                              color: '#37474f',
+                              color: '#263238',
                               whiteSpace: 'nowrap',
                               overflow: 'hidden',
                               textOverflow: 'ellipsis',
@@ -856,7 +856,7 @@ export default function CloudArchPuzzleApp() {
                           >
                             {comp.label}
                           </div>
-                          <div style={{ fontSize: 9, color: '#90a4ae', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          <div style={{ fontSize: 11, color: '#546e7a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                             {comp.desc}
                           </div>
                         </div>
@@ -871,8 +871,8 @@ export default function CloudArchPuzzleApp() {
             style={{
               padding: '6px 12px',
               borderTop: '1px solid rgba(244,143,177,0.06)',
-              fontSize: 10,
-              color: '#ce93d8',
+              fontSize: 12,
+              color: '#6a1b9a',
               textAlign: 'center',
               fontWeight: 600,
             }}
@@ -897,10 +897,10 @@ export default function CloudArchPuzzleApp() {
             }}
           >
             <div style={{ flex: 1, minWidth: 0 }}>
-              <h2 style={{ fontSize: 14, color: '#37474f', marginBottom: 1, fontFamily: "'Hachi Maru Pop', cursive" }}>
+              <h2 style={{ fontSize: 16, color: '#263238', marginBottom: 2, fontFamily: "'M PLUS Rounded 1c', sans-serif", fontWeight: 800 }}>
                 {challenge.emoji} {challenge.title}
               </h2>
-              <p style={{ fontSize: 11, color: '#78909c', lineHeight: 1.4 }}>{challenge.description}</p>
+              <p style={{ fontSize: 13, color: '#455a64', lineHeight: 1.5 }}>{challenge.description}</p>
             </div>
             <div style={{ display: 'flex', gap: 6, marginLeft: 12, flexShrink: 0 }}>
               <button
@@ -910,7 +910,7 @@ export default function CloudArchPuzzleApp() {
                   background: showHint ? '#fff3e0' : 'white',
                   color: '#f4a261',
                   border: '1.5px solid ' + (showHint ? '#f4a261' : '#f4a26120'),
-                  fontSize: 11,
+                  fontSize: 13,
                 }}
               >
                 💡 ヒント
@@ -922,7 +922,7 @@ export default function CloudArchPuzzleApp() {
                   background: 'white',
                   color: '#e57373',
                   border: '1.5px solid #e5737320',
-                  fontSize: 11,
+                  fontSize: 13,
                 }}
               >
                 🗑️ リセット
@@ -934,7 +934,7 @@ export default function CloudArchPuzzleApp() {
                   background: 'linear-gradient(135deg, #f48fb1, #ff8a65)',
                   color: 'white',
                   border: 'none',
-                  fontSize: 11,
+                  fontSize: 13,
                 }}
               >
                 ✅ 採点する！
@@ -948,8 +948,8 @@ export default function CloudArchPuzzleApp() {
                 padding: '8px 18px',
                 background: 'rgba(255,243,224,0.85)',
                 borderBottom: '1.5px solid #ffe0b220',
-                fontSize: 11,
-                color: '#e65100',
+                fontSize: 14,
+                color: '#bf360c',
                 animation: 'fadeUp 0.2s ease',
                 flexShrink: 0,
                 fontWeight: 500,
@@ -985,8 +985,8 @@ export default function CloudArchPuzzleApp() {
             {nodes.length === 0 && !result && (
               <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', textAlign: 'center', pointerEvents: 'none' }}>
                 <div style={{ fontSize: 52, marginBottom: 10, opacity: 0.3 }}>🧩</div>
-                <div style={{ fontSize: 15, color: '#f48fb1', opacity: 0.5, fontFamily: "'Hachi Maru Pop', cursive" }}>コンポーネントをここにドロップ！</div>
-                <div style={{ fontSize: 11, marginTop: 6, color: '#ab47bc', opacity: 0.35, fontWeight: 500 }}>ノードの下の●ポートをクリックして接続線を引こう</div>
+                <div style={{ fontSize: 17, color: '#c2185b', opacity: 0.75, fontFamily: "'M PLUS Rounded 1c', sans-serif", fontWeight: 800 }}>コンポーネントをここにドロップ！</div>
+                <div style={{ fontSize: 13, marginTop: 8, color: '#6a1b9a', opacity: 0.85, fontWeight: 600 }}>ノードの下の●ポートをクリックして接続線を引こう</div>
               </div>
             )}
 
@@ -1034,7 +1034,7 @@ export default function CloudArchPuzzleApp() {
                       style={{ animation: 'connDash 2s linear infinite' }}
                     />
                     <circle cx={cx} cy={cy} r={9} fill="white" stroke="#f48fb140" strokeWidth={1.5} style={{ filter: 'drop-shadow(0 1px 3px rgba(244,143,177,0.12))' }} />
-                    <text x={cx} y={cy + 3.5} textAnchor="middle" fill="#e57373" fontSize={9} fontWeight="bold" style={{ pointerEvents: 'none' }}>
+                    <text x={cx} y={cy + 4} textAnchor="middle" fill="#c62828" fontSize={11} fontWeight="bold" style={{ pointerEvents: 'none' }}>
                       ✕
                     </text>
                   </g>
@@ -1080,7 +1080,7 @@ export default function CloudArchPuzzleApp() {
                   ✕
                 </button>
                 <span style={{ fontSize: 20, lineHeight: 1 }}>{node.icon}</span>
-                <span style={{ fontSize: 9, fontWeight: 700, color: '#37474f', textAlign: 'center', lineHeight: 1.1, maxWidth: 96, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                <span style={{ fontSize: 10, fontWeight: 700, color: '#212121', textAlign: 'center', lineHeight: 1.15, maxWidth: 96, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {node.label}
                 </span>
 
@@ -1131,7 +1131,7 @@ export default function CloudArchPuzzleApp() {
           >
             <div style={{ padding: '16px 16px 12px', borderBottom: '1.5px solid rgba(244,143,177,0.05)' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-                <h3 style={{ fontSize: 14, color: '#ad1457', fontFamily: "'Hachi Maru Pop', cursive" }}>📊 採点結果</h3>
+                <h3 style={{ fontSize: 16, color: '#880e4f', fontFamily: "'M PLUS Rounded 1c', sans-serif", fontWeight: 800 }}>📊 採点結果</h3>
                 <button
                   onClick={() => {
                     setResult(null);
@@ -1173,10 +1173,10 @@ export default function CloudArchPuzzleApp() {
                   }}
                 >
                   <div style={{ width: 80, height: 80, borderRadius: '50%', background: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column' }}>
-                    <span style={{ fontSize: 26, fontFamily: "'Hachi Maru Pop', cursive", color: result.score >= 80 ? '#43a047' : result.score >= 50 ? '#f57c00' : '#e53935' }}>
+                    <span style={{ fontSize: 28, fontFamily: "'M PLUS Rounded 1c', sans-serif", fontWeight: 800, color: result.score >= 80 ? '#2e7d32' : result.score >= 50 ? '#e65100' : '#c62828' }}>
                       {result.score}
                     </span>
-                    <span style={{ fontSize: 9, color: '#90a4ae', fontWeight: 700 }}>てん</span>
+                    <span style={{ fontSize: 12, color: '#546e7a', fontWeight: 700 }}>てん</span>
                   </div>
                 </div>
               </div>
@@ -1194,9 +1194,9 @@ export default function CloudArchPuzzleApp() {
               >
                 <span
                   style={{
-                    fontSize: 13,
+                    fontSize: 15,
                     fontWeight: 800,
-                    color: result.score === 100 ? '#2e7d32' : result.score >= 70 ? '#e65100' : '#c62828',
+                    color: result.score === 100 ? '#1b5e20' : result.score >= 70 ? '#bf360c' : '#b71c1c',
                   }}
                 >
                   {result.score === 100 ? '🎉 パーフェクト！すごい！' : result.score >= 70 ? '👍 おしい！あと少し！' : '💪 がんばろう！'}
@@ -1205,13 +1205,13 @@ export default function CloudArchPuzzleApp() {
 
               {rank ? (
                 <div style={{ marginTop: 10 }}>
-                  <div style={{ fontSize: 12, color: '#ad1457', fontWeight: 800, marginBottom: 2 }}>
-                    ランク：<span style={{ color: '#f48fb1' }}>{rank}</span>
+                  <div style={{ fontSize: 14, color: '#6a1b9a', fontWeight: 800, marginBottom: 4 }}>
+                    ランク：<span style={{ color: '#c2185b' }}>{rank}</span>
                   </div>
                   {learning?.rankDescriptions?.[rank] ? (
-                    <div style={{ fontSize: 11, color: '#546e7a', lineHeight: 1.6 }}>{learning.rankDescriptions[rank]}</div>
+                    <div style={{ fontSize: 13, color: '#37474f', lineHeight: 1.65 }}>{learning.rankDescriptions[rank]}</div>
                   ) : (
-                    <div style={{ fontSize: 11, color: '#90a4ae', lineHeight: 1.6 }}>ランク解説を読み込み中...</div>
+                    <div style={{ fontSize: 13, color: '#78909c', lineHeight: 1.65 }}>ランク解説を読み込み中...</div>
                   )}
                 </div>
               ) : null}
@@ -1220,12 +1220,12 @@ export default function CloudArchPuzzleApp() {
             <div style={{ padding: '12px 14px', flex: 1, overflow: 'auto', display: 'flex', flexDirection: 'column', gap: 10 }}>
               <div className="white-card" style={{ padding: '12px 12px 10px' }}>
                 <div className="topline" style={{ background: '#ce93d8' }} />
-                <h4 style={{ fontSize: 11, fontWeight: 700, color: '#7b1fa2', marginBottom: 6 }}>🧱 コンポーネント配置</h4>
+                <h4 style={{ fontSize: 13, fontWeight: 800, color: '#4a148c', marginBottom: 8 }}>🧱 コンポーネント配置</h4>
                 {challenge.required.map(r => {
                   const placed = nodes.some(n => n.type === r);
                   return (
-                    <div key={r} style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '3px 0', fontSize: 11, color: placed ? '#2e7d32' : '#c62828', fontWeight: 600 }}>
-                      <span style={{ width: 20, height: 20, borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center', background: placed ? '#e8f5e9' : '#fce4ec', fontSize: 10, fontWeight: 800 }}>
+                    <div key={r} style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '4px 0', fontSize: 13, color: placed ? '#1b5e20' : '#b71c1c', fontWeight: 600 }}>
+                      <span style={{ width: 22, height: 22, borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center', background: placed ? '#e8f5e9' : '#fce4ec', fontSize: 12, fontWeight: 800 }}>
                         {placed ? '✓' : '✗'}
                       </span>
                       <span>{getLabel(r)}</span>
@@ -1236,7 +1236,7 @@ export default function CloudArchPuzzleApp() {
 
               <div className="white-card" style={{ padding: '12px 12px 10px' }}>
                 <div className="topline" style={{ background: '#7ec8e3' }} />
-                <h4 style={{ fontSize: 11, fontWeight: 700, color: '#0277bd', marginBottom: 6 }}>🔗 接続チェック</h4>
+                <h4 style={{ fontSize: 13, fontWeight: 800, color: '#01579b', marginBottom: 8 }}>🔗 接続チェック</h4>
                 {challenge.connections.map(([a, b], i) => {
                   const ok = connections.some(c => {
                     const fn = nodes.find(n => n.id === c.from);
@@ -1245,8 +1245,8 @@ export default function CloudArchPuzzleApp() {
                     return (fn.type === a && tn.type === b) || (fn.type === b && tn.type === a);
                   });
                   return (
-                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '3px 0', fontSize: 10, color: ok ? '#2e7d32' : '#c62828', fontWeight: 600 }}>
-                      <span style={{ width: 20, height: 20, borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center', background: ok ? '#e8f5e9' : '#fce4ec', fontSize: 9, fontWeight: 800 }}>
+                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '4px 0', fontSize: 13, color: ok ? '#1b5e20' : '#b71c1c', fontWeight: 600 }}>
+                      <span style={{ width: 22, height: 22, borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center', background: ok ? '#e8f5e9' : '#fce4ec', fontSize: 12, fontWeight: 800 }}>
                         {ok ? '✓' : '✗'}
                       </span>
                       <span>
@@ -1259,8 +1259,8 @@ export default function CloudArchPuzzleApp() {
 
               <div className="white-card" style={{ padding: '12px 12px 10px' }}>
                 <div className="topline" style={{ background: 'linear-gradient(90deg, #f48fb1, #ff8a65)' }} />
-                <h4 style={{ fontSize: 11, fontWeight: 700, color: '#ad1457', marginBottom: 5 }}>📖 解説</h4>
-                <p style={{ fontSize: 11, color: '#546e7a', lineHeight: 1.7 }}>{challenge.explanation}</p>
+                <h4 style={{ fontSize: 13, fontWeight: 800, color: '#880e4f', marginBottom: 8 }}>📖 解説</h4>
+                <p style={{ fontSize: 13, color: '#37474f', lineHeight: 1.75 }}>{challenge.explanation}</p>
               </div>
 
               {rank && youtube ? <YoutubeEntryPoint content={youtube} rank={rank} /> : null}
@@ -1278,8 +1278,8 @@ export default function CloudArchPuzzleApp() {
           borderTop: '1.5px solid rgba(244,143,177,0.05)',
           display: 'flex',
           justifyContent: 'space-between',
-          fontSize: 10,
-          color: '#ab47bc',
+          fontSize: 12,
+          color: '#4a148c',
           flexShrink: 0,
           fontWeight: 600,
         }}
