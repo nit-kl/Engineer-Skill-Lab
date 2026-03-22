@@ -14,8 +14,19 @@ export default function Phase1AppScreen(props: { appId: string; onExit: () => vo
   const isCloudArchPuzzle = appId === 'cloud-arch-puzzle';
 
   return (
-    <div className={["relative z-10 mx-auto", isCloudArchPuzzle ? "max-w-[1500px] px-2 py-4" : "max-w-7xl px-4 sm:px-6 lg:px-8 py-8"].join(' ')}>
-      <div className={["mb-6 flex items-center justify-between gap-4", isCloudArchPuzzle ? "mb-4" : ""].join(' ')}>
+    <div
+      className={
+        isCloudArchPuzzle
+          ? 'relative z-10 w-full min-w-0 max-w-none px-0 pt-0 pb-4'
+          : 'relative z-10 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8'
+      }
+    >
+      <div
+        className={[
+          'flex items-center justify-between gap-4',
+          isCloudArchPuzzle ? 'mb-4 px-4 sm:px-6' : 'mb-6',
+        ].join(' ')}
+      >
         <button
           type="button"
           onClick={onExit}
@@ -50,9 +61,15 @@ export default function Phase1AppScreen(props: { appId: string; onExit: () => vo
         </div>
       </div>
 
-      <div className="bg-white/80 backdrop-blur-sm border border-white/50 rounded-3xl shadow-sm overflow-hidden">
+      <div
+        className={
+          isCloudArchPuzzle
+            ? 'w-full min-w-0 bg-transparent border-0 shadow-none rounded-none overflow-visible'
+            : 'bg-white/80 backdrop-blur-sm border border-white/50 rounded-3xl shadow-sm overflow-hidden'
+        }
+      >
         {Component ? (
-          <div className={isCloudArchPuzzle ? 'p-0' : 'p-6 sm:p-8'}>{<Component />}</div>
+          <div className={isCloudArchPuzzle ? 'w-full min-w-0 p-0' : 'p-6 sm:p-8'}>{<Component />}</div>
         ) : (
           <div className="p-6 sm:p-8">
             <div className="text-lg font-bold text-gray-800 mb-2">対応していないアプリです</div>
