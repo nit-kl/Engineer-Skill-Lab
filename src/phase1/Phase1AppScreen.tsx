@@ -50,7 +50,13 @@ export default function Phase1AppScreen(props: { appId: string; onExit: () => vo
         </div>
       </div>
 
-      <div className="bg-white/80 backdrop-blur-sm border border-white/50 rounded-3xl shadow-sm overflow-hidden">
+      <div
+        className={
+          isCloudArchPuzzle
+            ? 'bg-transparent border-0 shadow-none rounded-none overflow-visible'
+            : 'bg-white/80 backdrop-blur-sm border border-white/50 rounded-3xl shadow-sm overflow-hidden'
+        }
+      >
         {Component ? (
           <div className={isCloudArchPuzzle ? 'p-0' : 'p-6 sm:p-8'}>{<Component />}</div>
         ) : (

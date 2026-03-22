@@ -562,6 +562,15 @@ function getRankByScore(score: number): Rank {
 const NODE_W = 108;
 const NODE_H = 72;
 
+const MIN_VIEW_SCALE = 0.35;
+const MAX_VIEW_SCALE = 2.5;
+const ZOOM_STEP = 1.12;
+
+/** ビューポートより広い論理座標系（ズームしても「置ける範囲」が画面ピクセル幅に縛られないようにする） */
+const WORLD_MIN_W = 2200;
+const WORLD_MIN_H = 1600;
+const WORLD_VIEWPORT_FACTOR = 4;
+
 function useCompactLayout(breakpointPx: number): boolean {
   const [compact, setCompact] = useState(() =>
     typeof window !== 'undefined' ? window.innerWidth <= breakpointPx : false
@@ -623,8 +632,44 @@ export default function CloudArchPuzzleApp() {
   const dragOffset = useRef({ x: 0, y: 0 });
   const movingNode = useRef<string | null>(null);
   const dragPointerId = useRef<number | null>(null);
+  const panDragRef = useRef<{
+    pointerId: number;
+    startX: number;
+    startY: number;
+    panX: number;
+    panY: number;
+  } | null>(null);
+
+  const [viewScale, setViewScale] = useState(1);
+  const [viewPan, setViewPan] = useState({ x: 0, y: 0 });
+  const viewScaleRef = useRef(viewScale);
+  const viewPanRef = useRef(viewPan);
+  viewScaleRef.current = viewScale;
+  viewPanRef.current = viewPan;
+
+  const [worldSize, setWorldSize] = useState({ w: WORLD_MIN_W, h: WORLD_MIN_H });
+  const worldSizeRef = useRef(worldSize);
+  worldSizeRef.current = worldSize;
 
   const compact = useCompactLayout(720);
+
+  useEffect(() => {
+    const el = canvasRef.current;
+    if (!el) return;
+    const update = () => {
+      const r = el.getBoundingClientRect();
+      const nw = Math.max(WORLD_MIN_W, Math.ceil(r.width * WORLD_VIEWPORT_FACTOR), Math.ceil(r.width));
+      const nh = Math.max(WORLD_MIN_H, Math.ceil(r.height * WORLD_VIEWPORT_FACTOR), Math.ceil(r.height));
+      setWorldSize(prev => ({
+        w: Math.max(prev.w, nw),
+        h: Math.max(prev.h, nh),
+      }));
+    };
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   const rank = result ? getRankByScore(result.score) : null;
 
@@ -646,10 +691,59 @@ export default function CloudArchPuzzleApp() {
       setConnecting(null);
       setSelectedNode(null);
       setCelebrateAnim(false);
+      setViewScale(1);
+      setViewPan({ x: 0, y: 0 });
       if (ch) setChallenge(ch);
     },
     []
   );
+
+  const resetView = useCallback(() => {
+    setViewScale(1);
+    setViewPan({ x: 0, y: 0 });
+  }, []);
+
+  const zoomViewAroundCanvasPoint = useCallback((factor: number, lx: number, ly: number) => {
+    const pan = viewPanRef.current;
+    const scale = viewScaleRef.current;
+    const wx = (lx - pan.x) / scale;
+    const wy = (ly - pan.y) / scale;
+    const next = Math.min(MAX_VIEW_SCALE, Math.max(MIN_VIEW_SCALE, scale * factor));
+    setViewScale(next);
+    setViewPan({ x: lx - wx * next, y: ly - wy * next });
+  }, []);
+
+  const zoomViewAtCenter = useCallback(
+    (factor: number) => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const rect = canvas.getBoundingClientRect();
+      zoomViewAroundCanvasPoint(factor, rect.width / 2, rect.height / 2);
+    },
+    [zoomViewAroundCanvasPoint]
+  );
+
+  useEffect(() => {
+    const el = canvasRef.current;
+    if (!el) return;
+    const onWheel = (e: WheelEvent) => {
+      if (e.ctrlKey) return;
+      e.preventDefault();
+      const factor = e.deltaY < 0 ? ZOOM_STEP : 1 / ZOOM_STEP;
+      const rect = el.getBoundingClientRect();
+      const lx = e.clientX - rect.left;
+      const ly = e.clientY - rect.top;
+      const pan = viewPanRef.current;
+      const scale = viewScaleRef.current;
+      const wx = (lx - pan.x) / scale;
+      const wy = (ly - pan.y) / scale;
+      const next = Math.min(MAX_VIEW_SCALE, Math.max(MIN_VIEW_SCALE, scale * factor));
+      setViewScale(next);
+      setViewPan({ x: lx - wx * next, y: ly - wy * next });
+    };
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, []);
 
   const handleDragStart = (e: ReactDragEvent<HTMLDivElement>, comp: CatalogItem) => {
     e.dataTransfer.setData('component', JSON.stringify(comp));
@@ -663,15 +757,20 @@ export default function CloudArchPuzzleApp() {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left - NODE_W / 2;
-    const y = e.clientY - rect.top - NODE_H / 2;
+    const pan = viewPanRef.current;
+    const sc = viewScaleRef.current;
+    const lx = e.clientX - rect.left;
+    const ly = e.clientY - rect.top;
+    const x = (lx - pan.x) / sc - NODE_W / 2;
+    const y = (ly - pan.y) / sc - NODE_H / 2;
+    const w = worldSizeRef.current;
     setNodes(prev => [
       ...prev,
       {
         id: genId(),
         ...comp,
-        x: Math.max(0, Math.min(x, rect.width - NODE_W)),
-        y: Math.max(0, Math.min(y, rect.height - NODE_H)),
+        x: Math.max(0, Math.min(x, w.w - NODE_W)),
+        y: Math.max(0, Math.min(y, w.h - NODE_H)),
       },
     ]);
   };
@@ -682,10 +781,15 @@ export default function CloudArchPuzzleApp() {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const rect = canvas.getBoundingClientRect();
+    const pan = viewPanRef.current;
+    const sc = viewScaleRef.current;
     setNodes(prev => {
       const stagger = (prev.length % 6) * 14;
-      const x = Math.max(0, Math.min((rect.width - NODE_W) / 2 + stagger, rect.width - NODE_W));
-      const y = Math.max(0, Math.min((rect.height - NODE_H) / 2 + stagger, rect.height - NODE_H));
+      const w = worldSizeRef.current;
+      const cx = (rect.width / 2 - pan.x) / sc - NODE_W / 2 + stagger;
+      const cy = (rect.height / 2 - pan.y) / sc - NODE_H / 2 + stagger;
+      const x = Math.max(0, Math.min(cx, w.w - NODE_W));
+      const y = Math.max(0, Math.min(cy, w.h - NODE_H));
       return [...prev, { id: genId(), ...comp, x, y }];
     });
   }, []);
@@ -698,7 +802,13 @@ export default function CloudArchPuzzleApp() {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const rect = canvas.getBoundingClientRect();
-    dragOffset.current = { x: e.clientX - rect.left - node.x, y: e.clientY - rect.top - node.y };
+    const pan = viewPanRef.current;
+    const sc = viewScaleRef.current;
+    const lx = e.clientX - rect.left;
+    const ly = e.clientY - rect.top;
+    const wx = (lx - pan.x) / sc;
+    const wy = (ly - pan.y) / sc;
+    dragOffset.current = { x: wx - node.x, y: wy - node.y };
     movingNode.current = node.id;
     dragPointerId.current = e.pointerId;
     setSelectedNode(node.id);
@@ -710,30 +820,53 @@ export default function CloudArchPuzzleApp() {
   };
 
   useEffect(() => {
+    const toWorld = (clientX: number, clientY: number) => {
+      const canvas = canvasRef.current;
+      if (!canvas) return { x: 0, y: 0 };
+      const rect = canvas.getBoundingClientRect();
+      const lx = clientX - rect.left;
+      const ly = clientY - rect.top;
+      const p = viewPanRef.current;
+      const s = viewScaleRef.current;
+      return { x: (lx - p.x) / s, y: (ly - p.y) / s };
+    };
+
     const handleMove = (e: PointerEvent) => {
       const canvas = canvasRef.current;
       if (!canvas) return;
 
+      if (panDragRef.current && e.pointerId === panDragRef.current.pointerId) {
+        const d = panDragRef.current;
+        setViewPan({
+          x: d.panX + (e.clientX - d.startX),
+          y: d.panY + (e.clientY - d.startY),
+        });
+        return;
+      }
+
       if (movingNode.current && dragPointerId.current === e.pointerId) {
-        const rect = canvas.getBoundingClientRect();
-        const x = e.clientX - rect.left - dragOffset.current.x;
-        const y = e.clientY - rect.top - dragOffset.current.y;
+        const world = worldSizeRef.current;
+        const pt = toWorld(e.clientX, e.clientY);
+        const x = pt.x - dragOffset.current.x;
+        const y = pt.y - dragOffset.current.y;
         setNodes(prev =>
           prev.map(n =>
             n.id === movingNode.current
-              ? { ...n, x: Math.max(0, Math.min(x, rect.width - NODE_W)), y: Math.max(0, Math.min(y, rect.height - NODE_H)) }
+              ? { ...n, x: Math.max(0, Math.min(x, world.w - NODE_W)), y: Math.max(0, Math.min(y, world.h - NODE_H)) }
               : n
           )
         );
       }
 
       if (connecting) {
-        const rect = canvas.getBoundingClientRect();
-        setMousePos({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+        setMousePos(toWorld(e.clientX, e.clientY));
       }
     };
 
     const handleUp = (e: PointerEvent) => {
+      if (panDragRef.current && e.pointerId === panDragRef.current.pointerId) {
+        panDragRef.current = null;
+      }
       if (dragPointerId.current !== null && e.pointerId === dragPointerId.current) {
         movingNode.current = null;
         dragPointerId.current = null;
@@ -765,7 +898,11 @@ export default function CloudArchPuzzleApp() {
       const canvas = canvasRef.current;
       if (!canvas) return;
       const rect = canvas.getBoundingClientRect();
-      setMousePos({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+      const pan = viewPanRef.current;
+      const sc = viewScaleRef.current;
+      const lx = e.clientX - rect.left;
+      const ly = e.clientY - rect.top;
+      setMousePos({ x: (lx - pan.x) / sc, y: (ly - pan.y) / sc });
     }
   };
 
@@ -1088,305 +1225,178 @@ export default function CloudArchPuzzleApp() {
 
       <div
         style={{
-          display: 'flex',
           flex: 1,
           minHeight: 0,
+          position: 'relative',
           overflow: 'hidden',
-          flexDirection: compact ? 'column' : 'row',
+          display: 'flex',
+          flexDirection: 'column',
         }}
       >
-        {/* Sidebar - Components (categorized with search) */}
+        {/* ドロップ・パン対象のボード（サイドバー背後のグラデ含め領域全体） */}
         <div
+          ref={canvasRef}
           style={{
-            order: compact ? 2 : 0,
-            width: compact ? '100%' : 220,
-            maxHeight: compact ? 'min(38vh, 260px)' : undefined,
-            flexShrink: 0,
-            display: 'flex',
-            flexDirection: 'column',
-            background: 'rgba(255,255,255,0.6)',
-            backdropFilter: 'blur(12px)',
-            borderRight: compact ? 'none' : '2px solid rgba(244,143,177,0.06)',
-            borderTop: compact ? '2px solid rgba(244,143,177,0.08)' : 'none',
-            minHeight: compact ? 0 : undefined,
+            position: 'absolute',
+            inset: 0,
+            zIndex: 0,
+            overflow: 'hidden',
+            ...(celebrateAnim ? { animation: 'celebrate 0.5s ease' } : {}),
+          }}
+          onDrop={handleDrop}
+          onDragOver={handleDragOver}
+          onPointerDown={e => {
+            if (e.button === 1) {
+              e.preventDefault();
+              panDragRef.current = {
+                pointerId: e.pointerId,
+                startX: e.clientX,
+                startY: e.clientY,
+                panX: viewPan.x,
+                panY: viewPan.y,
+              };
+              try {
+                e.currentTarget.setPointerCapture(e.pointerId);
+              } catch {
+                /* ignore */
+              }
+            }
+          }}
+          onClick={() => {
+            if (connecting) setConnecting(null);
+            setSelectedNode(null);
           }}
         >
-          <div style={{ padding: '12px 12px 8px' }}>
-            <h3 style={{ fontSize: 15, color: '#880e4f', fontFamily: "'M PLUS Rounded 1c', sans-serif", fontWeight: 800, marginBottom: 8 }}>🧱 コンポーネント</h3>
-            <div style={{ position: 'relative' }}>
-              <span style={{ position: 'absolute', left: 9, top: '50%', transform: 'translateY(-50%)', fontSize: 13, opacity: 0.4 }}>🔍</span>
-              <input className="search-input" placeholder="検索..." value={searchText} onChange={e => setSearchText(e.target.value)} />
-            </div>
-          </div>
-          <div
-            style={{
-              flex: 1,
-              overflow: 'auto',
-              padding: '2px 10px 10px',
-              WebkitOverflowScrolling: 'touch',
-            }}
-          >
-            {filteredCats.map(cat => (
-              <div key={cat.name} style={{ marginBottom: 2 }}>
-                <div className="cat-header" onClick={() => toggleCat(cat.name)}>
-                  <span
+            {nodes.length === 0 && !result && (
+              <div
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  zIndex: 4,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  textAlign: 'center',
+                  pointerEvents: 'none',
+                  padding: '0 12px',
+                }}
+              >
+                <div>
+                  <div style={{ fontSize: compact ? 40 : 52, marginBottom: 10, opacity: 0.3 }}>🧩</div>
+                  <div
                     style={{
-                      fontSize: 11,
-                      color: '#7b1fa2',
-                      transition: 'transform 0.2s',
-                      transform: expandedCats[cat.name] ? 'rotate(90deg)' : 'rotate(0deg)',
+                      fontSize: compact ? 14 : 17,
+                      color: '#c2185b',
+                      opacity: 0.75,
+                      fontFamily: "'M PLUS Rounded 1c', sans-serif",
+                      fontWeight: 800,
+                      lineHeight: 1.4,
                     }}
                   >
-                    ▶
-                  </span>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: '#4a148c' }}>
-                    {cat.icon} {cat.name}
-                  </span>
-                  <span style={{ fontSize: 11, color: '#8e24aa', marginLeft: 'auto', fontWeight: 600 }}>{cat.items.length}</span>
-                </div>
-                {expandedCats[cat.name] && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '2px 0 4px 6px' }}>
-                    {cat.items.map(comp => (
-                      <div
-                        key={comp.type}
-                        className="comp-card"
-                        draggable={!compact}
-                        onDragStart={compact ? undefined : e => handleDragStart(e, comp)}
-                        onClick={compact ? () => addComponentFromCatalog(comp) : undefined}
-                        role={compact ? 'button' : undefined}
-                        tabIndex={compact ? 0 : undefined}
-                        onKeyDown={
-                          compact
-                            ? e => {
-                                if (e.key === 'Enter' || e.key === ' ') {
-                                  e.preventDefault();
-                                  addComponentFromCatalog(comp);
-                                }
-                              }
-                            : undefined
-                        }
-                      >
-                        <div
-                          style={{
-                            width: 30,
-                            height: 30,
-                            borderRadius: 9,
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            background: comp.color + '15',
-                            flexShrink: 0,
-                            fontSize: 15,
-                          }}
-                        >
-                          {comp.icon}
-                        </div>
-                        <div style={{ minWidth: 0 }}>
-                          <div
-                            style={{
-                              fontSize: 13,
-                              fontWeight: 700,
-                              color: '#263238',
-                              whiteSpace: 'nowrap',
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis',
-                            }}
-                          >
-                            {comp.label}
-                          </div>
-                          <div style={{ fontSize: 11, color: '#546e7a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                            {comp.desc}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
+                    {compact ? '下の一覧をタップしてキャンバスに追加！' : 'コンポーネントをここにドロップ！'}
                   </div>
-                )}
-              </div>
-            ))}
-          </div>
-          <div
-            style={{
-              padding: '6px 12px',
-              borderTop: '1px solid rgba(244,143,177,0.06)',
-              fontSize: 12,
-              color: '#6a1b9a',
-              textAlign: 'center',
-              fontWeight: 600,
-            }}
-          >
-            この問題 {catalogItemCount}種 / {filteredCats.length}カテゴリ
-          </div>
-        </div>
-
-        {/* Main Canvas Area */}
-        <div
-          style={{
-            order: compact ? 1 : 0,
-            flex: 1,
-            minWidth: 0,
-            minHeight: compact ? 200 : 0,
-            display: 'flex',
-            flexDirection: 'column',
-            overflow: 'hidden',
-          }}
-        >
-          {/* Challenge Info Bar */}
-          <div
-            style={{
-              padding: compact ? '8px 12px' : '8px 18px',
-              background: 'rgba(255,255,255,0.5)',
-              backdropFilter: 'blur(8px)',
-              borderBottom: '2px solid rgba(244,143,177,0.05)',
-              display: 'flex',
-              flexDirection: compact ? 'column' : 'row',
-              alignItems: compact ? 'stretch' : 'center',
-              justifyContent: 'space-between',
-              gap: compact ? 10 : 0,
-              flexShrink: 0,
-            }}
-          >
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <h2
-                style={{
-                  fontSize: compact ? 14 : 16,
-                  color: '#263238',
-                  marginBottom: 2,
-                  fontFamily: "'M PLUS Rounded 1c', sans-serif",
-                  fontWeight: 800,
-                  lineHeight: 1.3,
-                }}
-              >
-                {challenge.emoji} {challenge.title}
-              </h2>
-              <p style={{ fontSize: compact ? 12 : 13, color: '#455a64', lineHeight: 1.5 }}>{challenge.description}</p>
-            </div>
-            <div
-              style={{
-                display: 'flex',
-                gap: 6,
-                marginLeft: compact ? 0 : 12,
-                flexShrink: 0,
-                flexWrap: 'wrap',
-                justifyContent: compact ? 'stretch' : 'flex-end',
-              }}
-            >
-              <button
-                className="btn"
-                onClick={() => setShowSolution(!showSolution)}
-                style={{
-                  background: showSolution ? '#fff3e0' : 'white',
-                  color: '#f4a261',
-                  border: '1.5px solid ' + (showSolution ? '#f4a261' : '#f4a26120'),
-                  fontSize: compact ? 12 : 13,
-                  padding: compact ? '7px 10px' : undefined,
-                  flex: compact ? 1 : undefined,
-                  minWidth: compact ? 0 : undefined,
-                }}
-              >
-                💡 {compact ? '解答' : '解答例'}
-              </button>
-              <button
-                className="btn"
-                onClick={() => resetBoard()}
-                style={{
-                  background: 'white',
-                  color: '#e57373',
-                  border: '1.5px solid #e5737320',
-                  fontSize: compact ? 12 : 13,
-                  padding: compact ? '7px 10px' : undefined,
-                  flex: compact ? 1 : undefined,
-                  minWidth: compact ? 0 : undefined,
-                }}
-              >
-                🗑️ {compact ? '消去' : 'リセット'}
-              </button>
-              <button
-                className="btn"
-                onClick={checkAnswer}
-                style={{
-                  background: 'linear-gradient(135deg, #f48fb1, #ff8a65)',
-                  color: 'white',
-                  border: 'none',
-                  fontSize: compact ? 12 : 13,
-                  padding: compact ? '7px 10px' : undefined,
-                  flex: compact ? 1 : undefined,
-                  minWidth: compact ? 0 : undefined,
-                }}
-              >
-                ✅ {compact ? '採点' : '採点する！'}
-              </button>
-            </div>
-          </div>
-
-          {showSolution && (
-            <div
-              style={{
-                padding: '10px 18px',
-                background: 'rgba(255,243,224,0.85)',
-                borderBottom: '1.5px solid #ffe0b220',
-                fontSize: 14,
-                color: '#bf360c',
-                animation: 'fadeUp 0.2s ease',
-                flexShrink: 0,
-                fontWeight: 500,
-                display: 'flex',
-                alignItems: 'flex-start',
-                gap: 8,
-                maxHeight: 220,
-                overflowY: 'auto',
-                whiteSpace: 'pre-line',
-                lineHeight: 1.55,
-              }}
-            >
-              <span style={{ fontSize: 16, flexShrink: 0, marginTop: 2 }}>💡</span>
-              <span>{formatSolutionExample(challenge)}</span>
-            </div>
-          )}
-
-          {/* Canvas */}
-          <div
-            ref={canvasRef}
-            style={{
-              flex: 1,
-              minHeight: 0,
-              position: 'relative',
-              overflow: 'hidden',
-              background: 'rgba(255,255,255,0.2)',
-              backgroundImage: `radial-gradient(circle, rgba(244,143,177,0.09) 1.2px, transparent 1.2px)`,
-              backgroundSize: '30px 30px',
-              ...(celebrateAnim ? { animation: 'celebrate 0.5s ease' } : {}),
-            }}
-            onDrop={handleDrop}
-            onDragOver={handleDragOver}
-            onClick={() => {
-              if (connecting) setConnecting(null);
-              setSelectedNode(null);
-            }}
-          >
-            {nodes.length === 0 && !result && (
-              <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', textAlign: 'center', pointerEvents: 'none', padding: '0 12px', maxWidth: '100%' }}>
-                <div style={{ fontSize: compact ? 40 : 52, marginBottom: 10, opacity: 0.3 }}>🧩</div>
-                <div
-                  style={{
-                    fontSize: compact ? 14 : 17,
-                    color: '#c2185b',
-                    opacity: 0.75,
-                    fontFamily: "'M PLUS Rounded 1c', sans-serif",
-                    fontWeight: 800,
-                    lineHeight: 1.4,
-                  }}
-                >
-                  {compact ? '下の一覧をタップしてキャンバスに追加！' : 'コンポーネントをここにドロップ！'}
-                </div>
-                <div style={{ fontSize: compact ? 12 : 13, marginTop: 8, color: '#6a1b9a', opacity: 0.85, fontWeight: 600, lineHeight: 1.45 }}>
-                  {compact ? 'ノード下の●をタップして、もう一方の●で接続' : 'ノードの下の●ポートをクリックして接続線を引こう'}
+                  <div style={{ fontSize: compact ? 12 : 13, marginTop: 8, color: '#6a1b9a', opacity: 0.85, fontWeight: 600, lineHeight: 1.45 }}>
+                    {compact ? 'ノード下の●をタップして、もう一方の●で接続' : 'ノードの下の●ポートをクリックして接続線を引こう'}
+                  </div>
                 </div>
               </div>
             )}
-
+            <div
+              style={{
+                position: 'absolute',
+                top: 8,
+                right: 8,
+                zIndex: 15,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 4,
+                padding: '4px 6px',
+                borderRadius: 14,
+                background: 'rgba(255,255,255,0.92)',
+                border: '1.5px solid rgba(244,143,177,0.2)',
+                boxShadow: '0 2px 10px rgba(0,0,0,0.06)',
+                pointerEvents: 'auto',
+              }}
+              onPointerDown={e => e.stopPropagation()}
+              onClick={e => e.stopPropagation()}
+            >
+              <button
+                type="button"
+                className="btn"
+                title="縮小"
+                onClick={() => zoomViewAtCenter(1 / ZOOM_STEP)}
+                style={{
+                  padding: '4px 10px',
+                  fontSize: compact ? 13 : 14,
+                  minWidth: 36,
+                  lineHeight: 1.2,
+                }}
+              >
+                −
+              </button>
+              <span
+                style={{
+                  fontSize: compact ? 11 : 12,
+                  fontWeight: 800,
+                  color: '#6a1b9a',
+                  minWidth: compact ? 38 : 44,
+                  textAlign: 'center',
+                }}
+              >
+                {Math.round(viewScale * 100)}%
+              </span>
+              <button
+                type="button"
+                className="btn"
+                title="拡大"
+                onClick={() => zoomViewAtCenter(ZOOM_STEP)}
+                style={{
+                  padding: '4px 10px',
+                  fontSize: compact ? 13 : 14,
+                  minWidth: 36,
+                  lineHeight: 1.2,
+                }}
+              >
+                +
+              </button>
+              <button
+                type="button"
+                className="btn"
+                title="表示をリセット"
+                onClick={resetView}
+                style={{
+                  padding: '4px 8px',
+                  fontSize: compact ? 11 : 12,
+                  marginLeft: 2,
+                  color: '#7b1fa2',
+                  background: 'white',
+                  border: '1.5px solid #e1bee7',
+                }}
+              >
+                {compact ? '⌂' : '全体'}
+              </button>
+            </div>
+            <div
+              style={{
+                position: 'absolute',
+                left: 0,
+                top: 0,
+                width: `max(100%, ${worldSize.w}px)`,
+                height: `max(100%, ${worldSize.h}px)`,
+                minWidth: '100%',
+                minHeight: '100%',
+                boxSizing: 'border-box',
+                transform: `translate(${viewPan.x}px, ${viewPan.y}px) scale(${viewScale})`,
+                transformOrigin: '0 0',
+                background: 'rgba(255,255,255,0.2)',
+                backgroundImage: `radial-gradient(circle, rgba(244,143,177,0.09) 1.2px, transparent 1.2px)`,
+                backgroundSize: '30px 30px',
+              }}
+            >
             {/* SVG Connections */}
-            <svg style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 1 }}>
+            <svg
+              style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 1 }}
+            >
               <defs>
                 <marker id="arrowPink" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
                   <polygon points="0 0, 8 3, 0 6" fill="#f48fb1" opacity="0.8" />
@@ -1513,7 +1523,275 @@ export default function CloudArchPuzzleApp() {
                   {['✨', '🎉', '⭐', '🎊', '💫', '🌟', '🎀'][i % 7]}
                 </span>
               ))}
+            </div>
+        </div>
+        <div
+          style={{
+            position: 'relative',
+            zIndex: 1,
+            flex: 1,
+            display: 'flex',
+            minHeight: 0,
+            minWidth: 0,
+            overflow: 'hidden',
+            flexDirection: compact ? 'column' : 'row',
+            pointerEvents: 'none',
+          }}
+        >
+        {/* Sidebar - Components (categorized with search) */}
+        <div
+          style={{
+            order: compact ? 2 : 0,
+            width: compact ? '100%' : 220,
+            maxHeight: compact ? 'min(38vh, 260px)' : undefined,
+            flexShrink: 0,
+            display: 'flex',
+            flexDirection: 'column',
+            background: 'rgba(255,255,255,0.6)',
+            backdropFilter: 'blur(12px)',
+            borderRight: compact ? 'none' : '2px solid rgba(244,143,177,0.06)',
+            borderTop: compact ? '2px solid rgba(244,143,177,0.08)' : 'none',
+            minHeight: compact ? 0 : undefined,
+            pointerEvents: 'auto',
+          }}
+        >
+          <div style={{ padding: '12px 12px 8px' }}>
+            <h3 style={{ fontSize: 15, color: '#880e4f', fontFamily: "'M PLUS Rounded 1c', sans-serif", fontWeight: 800, marginBottom: 8 }}>🧱 コンポーネント</h3>
+            <div style={{ position: 'relative' }}>
+              <span style={{ position: 'absolute', left: 9, top: '50%', transform: 'translateY(-50%)', fontSize: 13, opacity: 0.4 }}>🔍</span>
+              <input className="search-input" placeholder="検索..." value={searchText} onChange={e => setSearchText(e.target.value)} />
+            </div>
           </div>
+          <div
+            style={{
+              flex: 1,
+              overflow: 'auto',
+              padding: '2px 10px 10px',
+              WebkitOverflowScrolling: 'touch',
+            }}
+          >
+            {filteredCats.map(cat => (
+              <div key={cat.name} style={{ marginBottom: 2 }}>
+                <div className="cat-header" onClick={() => toggleCat(cat.name)}>
+                  <span
+                    style={{
+                      fontSize: 11,
+                      color: '#7b1fa2',
+                      transition: 'transform 0.2s',
+                      transform: expandedCats[cat.name] ? 'rotate(90deg)' : 'rotate(0deg)',
+                    }}
+                  >
+                    ▶
+                  </span>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: '#4a148c' }}>
+                    {cat.icon} {cat.name}
+                  </span>
+                  <span style={{ fontSize: 11, color: '#8e24aa', marginLeft: 'auto', fontWeight: 600 }}>{cat.items.length}</span>
+                </div>
+                {expandedCats[cat.name] && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '2px 0 4px 6px' }}>
+                    {cat.items.map(comp => (
+                      <div
+                        key={comp.type}
+                        className="comp-card"
+                        draggable={!compact}
+                        onDragStart={compact ? undefined : e => handleDragStart(e, comp)}
+                        onClick={compact ? () => addComponentFromCatalog(comp) : undefined}
+                        role={compact ? 'button' : undefined}
+                        tabIndex={compact ? 0 : undefined}
+                        onKeyDown={
+                          compact
+                            ? e => {
+                                if (e.key === 'Enter' || e.key === ' ') {
+                                  e.preventDefault();
+                                  addComponentFromCatalog(comp);
+                                }
+                              }
+                            : undefined
+                        }
+                      >
+                        <div
+                          style={{
+                            width: 30,
+                            height: 30,
+                            borderRadius: 9,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            background: comp.color + '15',
+                            flexShrink: 0,
+                            fontSize: 15,
+                          }}
+                        >
+                          {comp.icon}
+                        </div>
+                        <div style={{ minWidth: 0 }}>
+                          <div
+                            style={{
+                              fontSize: 13,
+                              fontWeight: 700,
+                              color: '#263238',
+                              whiteSpace: 'nowrap',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                            }}
+                          >
+                            {comp.label}
+                          </div>
+                          <div style={{ fontSize: 11, color: '#546e7a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {comp.desc}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+          <div
+            style={{
+              padding: '6px 12px',
+              borderTop: '1px solid rgba(244,143,177,0.06)',
+              fontSize: 12,
+              color: '#6a1b9a',
+              textAlign: 'center',
+              fontWeight: 600,
+            }}
+          >
+            この問題 {catalogItemCount}種 / {filteredCats.length}カテゴリ
+          </div>
+        </div>
+
+        {/* Main Canvas Area — UIオーバーレイ（pointer-events で下のボードへ透過） */}
+        <div
+          style={{
+            order: compact ? 1 : 0,
+            flex: 1,
+            minWidth: 0,
+            minHeight: compact ? 200 : 0,
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden',
+            position: 'relative',
+            pointerEvents: 'none',
+          }}
+        >
+          {/* Challenge Info Bar */}
+          <div
+            style={{
+              padding: compact ? '8px 12px' : '8px 18px',
+              background: 'rgba(255,255,255,0.5)',
+              backdropFilter: 'blur(8px)',
+              borderBottom: '2px solid rgba(244,143,177,0.05)',
+              display: 'flex',
+              flexDirection: compact ? 'column' : 'row',
+              alignItems: compact ? 'stretch' : 'center',
+              justifyContent: 'space-between',
+              gap: compact ? 10 : 0,
+              flexShrink: 0,
+              pointerEvents: 'auto',
+            }}
+          >
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <h2
+                style={{
+                  fontSize: compact ? 14 : 16,
+                  color: '#263238',
+                  marginBottom: 2,
+                  fontFamily: "'M PLUS Rounded 1c', sans-serif",
+                  fontWeight: 800,
+                  lineHeight: 1.3,
+                }}
+              >
+                {challenge.emoji} {challenge.title}
+              </h2>
+              <p style={{ fontSize: compact ? 12 : 13, color: '#455a64', lineHeight: 1.5 }}>{challenge.description}</p>
+            </div>
+            <div
+              style={{
+                display: 'flex',
+                gap: 6,
+                marginLeft: compact ? 0 : 12,
+                flexShrink: 0,
+                flexWrap: 'wrap',
+                justifyContent: compact ? 'stretch' : 'flex-end',
+              }}
+            >
+              <button
+                className="btn"
+                onClick={() => setShowSolution(!showSolution)}
+                style={{
+                  background: showSolution ? '#fff3e0' : 'white',
+                  color: '#f4a261',
+                  border: '1.5px solid ' + (showSolution ? '#f4a261' : '#f4a26120'),
+                  fontSize: compact ? 12 : 13,
+                  padding: compact ? '7px 10px' : undefined,
+                  flex: compact ? 1 : undefined,
+                  minWidth: compact ? 0 : undefined,
+                }}
+              >
+                💡 {compact ? '解答' : '解答例'}
+              </button>
+              <button
+                className="btn"
+                onClick={() => resetBoard()}
+                style={{
+                  background: 'white',
+                  color: '#e57373',
+                  border: '1.5px solid #e5737320',
+                  fontSize: compact ? 12 : 13,
+                  padding: compact ? '7px 10px' : undefined,
+                  flex: compact ? 1 : undefined,
+                  minWidth: compact ? 0 : undefined,
+                }}
+              >
+                🗑️ {compact ? '消去' : 'リセット'}
+              </button>
+              <button
+                className="btn"
+                onClick={checkAnswer}
+                style={{
+                  background: 'linear-gradient(135deg, #f48fb1, #ff8a65)',
+                  color: 'white',
+                  border: 'none',
+                  fontSize: compact ? 12 : 13,
+                  padding: compact ? '7px 10px' : undefined,
+                  flex: compact ? 1 : undefined,
+                  minWidth: compact ? 0 : undefined,
+                }}
+              >
+                ✅ {compact ? '採点' : '採点する！'}
+              </button>
+            </div>
+          </div>
+
+          {showSolution && (
+            <div
+              style={{
+                padding: '10px 18px',
+                background: 'rgba(255,243,224,0.85)',
+                borderBottom: '1.5px solid #ffe0b220',
+                fontSize: 14,
+                color: '#bf360c',
+                animation: 'fadeUp 0.2s ease',
+                flexShrink: 0,
+                fontWeight: 500,
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: 8,
+                maxHeight: 220,
+                overflowY: 'auto',
+                whiteSpace: 'pre-line',
+                lineHeight: 1.55,
+                pointerEvents: 'auto',
+              }}
+            >
+              <span style={{ fontSize: 16, flexShrink: 0, marginTop: 2 }}>💡</span>
+              <span>{formatSolutionExample(challenge)}</span>
+            </div>
+          )}
+        </div>
         </div>
 
         {/* Right Panel - Result */}
@@ -1672,7 +1950,11 @@ export default function CloudArchPuzzleApp() {
           📦 {nodes.length} ・ 🔗 {connections.length} ・ 🎯 {challenge.required.length}個 {challenge.connections.length}本
         </span>
         <span style={{ lineHeight: 1.35, opacity: compact ? 0.92 : 1 }}>
-          {connecting ? '🔗 接続先の●をタップ' : compact ? '●タップで接続 ✨' : 'ノード下の●をクリックで接続スタート ✨'}
+          {connecting
+            ? '🔗 接続先の●をタップ'
+            : compact
+              ? '🔍 右上の±で拡大 · ●で接続'
+              : '🔍 ホイールで拡大縮小 · ホイールクリックで移動 · ●で接続'}
         </span>
       </div>
     </div>
