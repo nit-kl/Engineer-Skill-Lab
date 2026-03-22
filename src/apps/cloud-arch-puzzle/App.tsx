@@ -566,6 +566,9 @@ const MIN_VIEW_SCALE = 0.35;
 const MAX_VIEW_SCALE = 2.5;
 const ZOOM_STEP = 1.12;
 
+/** 初期表示・ビューリセット時のパン（translate が負方向＝ドット／ノードが画面上でやや左上へ） */
+const DEFAULT_VIEW_PAN = { x: -52, y: -48 };
+
 /** ビューポートより広い論理座標系（ズームしても「置ける範囲」が画面ピクセル幅に縛られないようにする） */
 const WORLD_MIN_W = 2200;
 const WORLD_MIN_H = 1600;
@@ -641,7 +644,7 @@ export default function CloudArchPuzzleApp() {
   } | null>(null);
 
   const [viewScale, setViewScale] = useState(1);
-  const [viewPan, setViewPan] = useState({ x: 0, y: 0 });
+  const [viewPan, setViewPan] = useState(() => ({ ...DEFAULT_VIEW_PAN }));
   const viewScaleRef = useRef(viewScale);
   const viewPanRef = useRef(viewPan);
   viewScaleRef.current = viewScale;
@@ -692,7 +695,7 @@ export default function CloudArchPuzzleApp() {
       setSelectedNode(null);
       setCelebrateAnim(false);
       setViewScale(1);
-      setViewPan({ x: 0, y: 0 });
+      setViewPan({ ...DEFAULT_VIEW_PAN });
       if (ch) setChallenge(ch);
     },
     []
@@ -700,7 +703,7 @@ export default function CloudArchPuzzleApp() {
 
   const resetView = useCallback(() => {
     setViewScale(1);
-    setViewPan({ x: 0, y: 0 });
+    setViewPan({ ...DEFAULT_VIEW_PAN });
   }, []);
 
   const zoomViewAroundCanvasPoint = useCallback((factor: number, lx: number, ly: number) => {
@@ -1033,7 +1036,7 @@ export default function CloudArchPuzzleApp() {
           box-shadow: 0 2px 8px rgba(0,0,0,0.03);
         }
         .challenge-card:hover { border-color: #f48fb1; transform: translateY(-2px); box-shadow: 0 6px 22px rgba(244,143,177,0.13); }
-        .floating-emoji { position: absolute; pointer-events: none; opacity: 0.13; z-index: 0; }
+        .floating-emoji { position: absolute; pointer-events: none; opacity: 0.13; z-index: 2; }
         .topline { position: absolute; top: 0; left: 16px; right: 16px; height: 3px; border-radius: 0 0 3px 3px; }
         .white-card {
           background: white; border-radius: 20px; border: 1px solid rgba(244,143,177,0.06);
@@ -1069,177 +1072,14 @@ export default function CloudArchPuzzleApp() {
         </span>
       ))}
 
-      {/* Header */}
+      {/* ドロップ・パン対象のボード（ルート全面・ヘッダー背後までドット） */}
       <div
-        style={{
-          display: 'flex',
-          flexDirection: compact ? 'column' : 'row',
-          alignItems: compact ? 'stretch' : 'center',
-          justifyContent: 'space-between',
-          gap: compact ? 8 : 0,
-          padding: compact ? '8px 12px' : '10px 20px',
-          background: 'rgba(255,255,255,0.72)',
-          backdropFilter: 'blur(14px)',
-          borderBottom: '2px solid rgba(244,143,177,0.08)',
-          flexShrink: 0,
-          zIndex: 20,
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: compact ? 8 : 10, minWidth: 0 }}>
-          <span style={{ fontSize: compact ? 22 : 26, flexShrink: 0 }}>☁️</span>
-          <div style={{ minWidth: 0 }}>
-            <h1
-              style={{
-                fontSize: compact ? 15 : 18,
-                color: '#880e4f',
-                fontFamily: "'Hachi Maru Pop', cursive",
-                fontWeight: 700,
-                letterSpacing: '0.02em',
-                lineHeight: 1.25,
-              }}
-            >
-              クラウドアーキテクチャパズル
-            </h1>
-            {!compact && (
-              <p style={{ fontSize: 13, color: '#6a1b9a', fontWeight: 600, marginTop: 2 }}>
-                {ALL_COMPONENTS.length}種のコンポーネントで本格システム設計！
-              </p>
-            )}
-          </div>
-        </div>
-        <div
-          style={{
-            display: 'flex',
-            gap: 8,
-            alignItems: 'center',
-            flexWrap: 'wrap',
-            justifyContent: compact ? 'flex-end' : 'flex-start',
-          }}
-        >
-          <span className="badge" style={compact ? { fontSize: 11, padding: '3px 10px' } : undefined}>
-            {challenge.emoji} {challenge.difficulty}
-          </span>
-          <button
-            className="btn"
-            onClick={() => setShowMenu(!showMenu)}
-            style={{
-              background: 'white',
-              color: '#ad1457',
-              border: '2px solid #f48fb130',
-              padding: compact ? '7px 12px' : undefined,
-              fontSize: compact ? 12 : 13,
-            }}
-          >
-            {compact ? '📋 チャレンジ' : '📋 チャレンジ選択'}
-          </button>
-        </div>
-      </div>
-
-      {/* Challenge Menu Overlay */}
-      {showMenu && (
-        <div
-          style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            zIndex: 50,
-            background: 'rgba(252,228,236,0.5)',
-            backdropFilter: 'blur(14px)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-          onClick={() => setShowMenu(false)}
-        >
-          <div
-            className="white-card"
-            style={{
-              padding: compact ? 16 : 24,
-              width: 'min(560px, calc(100vw - 24px))',
-              maxWidth: '100%',
-              maxHeight: compact ? '90vh' : '85vh',
-              overflow: 'auto',
-              WebkitOverflowScrolling: 'touch',
-              animation: 'pop 0.3s ease',
-              boxShadow: '0 20px 60px rgba(173,20,87,0.10)',
-              borderRadius: compact ? 18 : 24,
-            }}
-            onClick={e => e.stopPropagation()}
-          >
-            <div className="topline" style={{ background: 'linear-gradient(90deg, #f48fb1, #ff8a65)' }} />
-            <h2 style={{ fontSize: 20, color: '#880e4f', marginBottom: 6, fontFamily: "'M PLUS Rounded 1c', sans-serif", fontWeight: 800 }}>🧩 チャレンジを選択</h2>
-            <p style={{ fontSize: 14, color: '#4a148c', marginBottom: 16, fontWeight: 500, lineHeight: 1.5 }}>
-              全{CHALLENGES.length}問！難易度別にアーキテクチャ設計に挑戦しよう
-            </p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {CHALLENGES.map(ch => (
-                <div
-                  key={ch.id}
-                  className="challenge-card"
-                  style={ch.id === challenge.id ? { borderColor: ch.diffColor, background: ch.diffColor + '0c' } : {}}
-                  onClick={() => {
-                    resetBoard(ch);
-                    setShowMenu(false);
-                  }}
-                >
-                  <div className="topline" style={{ background: ch.diffColor }} />
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                    <span style={{ fontWeight: 700, fontSize: 15, color: '#263238' }}>
-                      {ch.emoji} {ch.title}
-                    </span>
-                    <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                      <span style={{ fontSize: 12, color: '#546e7a' }}>
-                        {ch.required.length}個 / {ch.connections.length}本
-                      </span>
-                      <span className="badge" style={{ background: `linear-gradient(135deg, ${ch.diffColor}, ${ch.diffColor}bb)` }}>
-                        {ch.difficulty}
-                      </span>
-                    </div>
-                  </div>
-                  <p style={{ fontSize: 13, color: '#455a64', lineHeight: 1.6 }}>{ch.description}</p>
-                  <div style={{ display: 'flex', gap: 4, marginTop: 7, flexWrap: 'wrap' }}>
-                    {ch.required.map(r => (
-                      <span
-                        key={r}
-                        style={{
-                          fontSize: 11,
-                          padding: '3px 9px',
-                          borderRadius: 10,
-                          background: '#fce4ec',
-                          color: '#880e4f',
-                          fontWeight: 600,
-                        }}
-                      >
-                        {getLabel(r)}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
-      <div
-        style={{
-          flex: 1,
-          minHeight: 0,
-          position: 'relative',
-          overflow: 'hidden',
-          display: 'flex',
-          flexDirection: 'column',
-        }}
-      >
-        {/* ドロップ・パン対象のボード（サイドバー背後のグラデ含め領域全体） */}
-        <div
           ref={canvasRef}
           style={{
             position: 'absolute',
             inset: 0,
-            zIndex: 0,
+            /* z-auto と並べると flex が後勝ちで誤った合成になるが、-1 にすると DnD のヒットが効かない環境がある。1 + ワークエリア 2 で順序を固定 */
+            zIndex: 1,
             overflow: 'hidden',
             ...(celebrateAnim ? { animation: 'celebrate 0.5s ease' } : {}),
           }}
@@ -1304,7 +1144,7 @@ export default function CloudArchPuzzleApp() {
             <div
               style={{
                 position: 'absolute',
-                top: 8,
+                top: compact ? 52 : 72,
                 right: 8,
                 zIndex: 15,
                 display: 'flex',
@@ -1525,6 +1365,175 @@ export default function CloudArchPuzzleApp() {
               ))}
             </div>
         </div>
+
+
+      {/* Header */}
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: compact ? 'column' : 'row',
+          alignItems: compact ? 'stretch' : 'center',
+          justifyContent: 'space-between',
+          gap: compact ? 8 : 0,
+          padding: compact ? '8px 12px' : '10px 20px',
+          background: 'rgba(255,255,255,0.72)',
+          backdropFilter: 'blur(14px)',
+          borderBottom: '2px solid rgba(244,143,177,0.08)',
+          flexShrink: 0,
+          zIndex: 20,
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: compact ? 8 : 10, minWidth: 0 }}>
+          <span style={{ fontSize: compact ? 22 : 26, flexShrink: 0 }}>☁️</span>
+          <div style={{ minWidth: 0 }}>
+            <h1
+              style={{
+                fontSize: compact ? 15 : 18,
+                color: '#880e4f',
+                fontFamily: "'Hachi Maru Pop', cursive",
+                fontWeight: 700,
+                letterSpacing: '0.02em',
+                lineHeight: 1.25,
+              }}
+            >
+              クラウドアーキテクチャパズル
+            </h1>
+            {!compact && (
+              <p style={{ fontSize: 13, color: '#6a1b9a', fontWeight: 600, marginTop: 2 }}>
+                {ALL_COMPONENTS.length}種のコンポーネントで本格システム設計！
+              </p>
+            )}
+          </div>
+        </div>
+        <div
+          style={{
+            display: 'flex',
+            gap: 8,
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            justifyContent: compact ? 'flex-end' : 'flex-start',
+          }}
+        >
+          <span className="badge" style={compact ? { fontSize: 11, padding: '3px 10px' } : undefined}>
+            {challenge.emoji} {challenge.difficulty}
+          </span>
+          <button
+            className="btn"
+            onClick={() => setShowMenu(!showMenu)}
+            style={{
+              background: 'white',
+              color: '#ad1457',
+              border: '2px solid #f48fb130',
+              padding: compact ? '7px 12px' : undefined,
+              fontSize: compact ? 12 : 13,
+            }}
+          >
+            {compact ? '📋 チャレンジ' : '📋 チャレンジ選択'}
+          </button>
+        </div>
+      </div>
+
+      {/* Challenge Menu Overlay */}
+      {showMenu && (
+        <div
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            zIndex: 50,
+            background: 'rgba(252,228,236,0.5)',
+            backdropFilter: 'blur(14px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+          onClick={() => setShowMenu(false)}
+        >
+          <div
+            className="white-card"
+            style={{
+              padding: compact ? 16 : 24,
+              width: 'min(560px, calc(100vw - 24px))',
+              maxWidth: '100%',
+              maxHeight: compact ? '90vh' : '85vh',
+              overflow: 'auto',
+              WebkitOverflowScrolling: 'touch',
+              animation: 'pop 0.3s ease',
+              boxShadow: '0 20px 60px rgba(173,20,87,0.10)',
+              borderRadius: compact ? 18 : 24,
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="topline" style={{ background: 'linear-gradient(90deg, #f48fb1, #ff8a65)' }} />
+            <h2 style={{ fontSize: 20, color: '#880e4f', marginBottom: 6, fontFamily: "'M PLUS Rounded 1c', sans-serif", fontWeight: 800 }}>🧩 チャレンジを選択</h2>
+            <p style={{ fontSize: 14, color: '#4a148c', marginBottom: 16, fontWeight: 500, lineHeight: 1.5 }}>
+              全{CHALLENGES.length}問！難易度別にアーキテクチャ設計に挑戦しよう
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {CHALLENGES.map(ch => (
+                <div
+                  key={ch.id}
+                  className="challenge-card"
+                  style={ch.id === challenge.id ? { borderColor: ch.diffColor, background: ch.diffColor + '0c' } : {}}
+                  onClick={() => {
+                    resetBoard(ch);
+                    setShowMenu(false);
+                  }}
+                >
+                  <div className="topline" style={{ background: ch.diffColor }} />
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                    <span style={{ fontWeight: 700, fontSize: 15, color: '#263238' }}>
+                      {ch.emoji} {ch.title}
+                    </span>
+                    <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                      <span style={{ fontSize: 12, color: '#546e7a' }}>
+                        {ch.required.length}個 / {ch.connections.length}本
+                      </span>
+                      <span className="badge" style={{ background: `linear-gradient(135deg, ${ch.diffColor}, ${ch.diffColor}bb)` }}>
+                        {ch.difficulty}
+                      </span>
+                    </div>
+                  </div>
+                  <p style={{ fontSize: 13, color: '#455a64', lineHeight: 1.6 }}>{ch.description}</p>
+                  <div style={{ display: 'flex', gap: 4, marginTop: 7, flexWrap: 'wrap' }}>
+                    {ch.required.map(r => (
+                      <span
+                        key={r}
+                        style={{
+                          fontSize: 11,
+                          padding: '3px 9px',
+                          borderRadius: 10,
+                          background: '#fce4ec',
+                          color: '#880e4f',
+                          fontWeight: 600,
+                        }}
+                      >
+                        {getLabel(r)}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div
+        style={{
+          flex: 1,
+          minHeight: 0,
+          position: 'relative',
+          overflow: 'hidden',
+          display: 'flex',
+          flexDirection: 'column',
+          zIndex: 2,
+          /* 背面のボード（ドロップ・パン）へイベントを通すため親は透過 */
+          pointerEvents: 'none',
+        }}
+      >
         <div
           style={{
             position: 'relative',
@@ -1547,7 +1556,7 @@ export default function CloudArchPuzzleApp() {
             flexShrink: 0,
             display: 'flex',
             flexDirection: 'column',
-            background: 'rgba(255,255,255,0.6)',
+            background: 'rgba(255,255,255,0.42)',
             backdropFilter: 'blur(12px)',
             borderRight: compact ? 'none' : '2px solid rgba(244,143,177,0.06)',
             borderTop: compact ? '2px solid rgba(244,143,177,0.08)' : 'none',
@@ -1944,6 +1953,7 @@ export default function CloudArchPuzzleApp() {
           color: '#4a148c',
           flexShrink: 0,
           fontWeight: 600,
+          pointerEvents: 'none',
         }}
       >
         <span style={{ lineHeight: 1.35 }}>
