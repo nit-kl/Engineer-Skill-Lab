@@ -24,7 +24,7 @@ export default function Phase1AppScreen(props: { appId: string; onExit: () => vo
       <div
         className={[
           'flex items-center justify-between gap-4',
-          isCloudArchPuzzle ? 'mb-2 px-2 sm:px-4' : 'mb-6',
+          isCloudArchPuzzle ? 'mb-4 px-4 sm:px-6' : 'mb-6',
         ].join(' ')}
       >
         <button
