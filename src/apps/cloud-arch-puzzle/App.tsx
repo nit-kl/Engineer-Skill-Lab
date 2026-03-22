@@ -283,9 +283,9 @@ const CHALLENGES: Challenge[] = [
           ['dns', 'lb'],
           ['lb', 'api'],
           ['lb', 'websocket'],
-          ['websocket', 'api'],
-          ['lb', 'auth'],
-          ['api', 'nosql'],
+          ['websocket', 'auth'],
+          ['websocket', 'nosql'],
+          ['api', 'auth'],
           ['api', 'cache'],
           ['api', 'push'],
         ],
@@ -575,6 +575,9 @@ const MIN_VIEW_SCALE = 0.35;
 const MAX_VIEW_SCALE = 2.5;
 const ZOOM_STEP = 1.12;
 
+/** 空きキャンバスをドラッグしてパン開始するまでの移動量（タップ解除・接続キャンセルと区別） */
+const CANVAS_PAN_POINTER_THRESHOLD_PX = 12;
+
 /** 初期表示・ビューリセット時のパン（translate が負方向＝ドット／ノードが画面上でやや左上へ） */
 const DEFAULT_VIEW_PAN = { x: -52, y: -48 };
 
@@ -650,6 +653,14 @@ export default function CloudArchPuzzleApp() {
     startY: number;
     panX: number;
     panY: number;
+  } | null>(null);
+  /** タッチ／マウス: しきい値通過まではパン確定しない（タップ操作を残す） */
+  const pendingCanvasPanRef = useRef<{
+    pointerId: number;
+    startX: number;
+    startY: number;
+    startPanX: number;
+    startPanY: number;
   } | null>(null);
   /** 2指ピンチの直前の指間距離（キャンバス上でズーム用） */
   const pinchDistRef = useRef<number | null>(null);
@@ -764,6 +775,10 @@ export default function CloudArchPuzzleApp() {
     if (!el) return;
 
     const onTouchStart = (e: TouchEvent) => {
+      if (e.touches.length >= 2) {
+        pendingCanvasPanRef.current = null;
+        panDragRef.current = null;
+      }
       if (e.touches.length === 2) {
         e.preventDefault();
         const t0 = e.touches[0];
@@ -895,6 +910,27 @@ export default function CloudArchPuzzleApp() {
       const canvas = canvasRef.current;
       if (!canvas) return;
 
+      const pending = pendingCanvasPanRef.current;
+      if (pending && e.pointerId === pending.pointerId) {
+        const dx = e.clientX - pending.startX;
+        const dy = e.clientY - pending.startY;
+        if (Math.hypot(dx, dy) >= CANVAS_PAN_POINTER_THRESHOLD_PX) {
+          pendingCanvasPanRef.current = null;
+          panDragRef.current = {
+            pointerId: e.pointerId,
+            startX: e.clientX,
+            startY: e.clientY,
+            panX: pending.startPanX,
+            panY: pending.startPanY,
+          };
+          try {
+            canvas.setPointerCapture(e.pointerId);
+          } catch {
+            /* ignore */
+          }
+        }
+      }
+
       if (panDragRef.current && e.pointerId === panDragRef.current.pointerId) {
         const d = panDragRef.current;
         setViewPan({
@@ -924,6 +960,9 @@ export default function CloudArchPuzzleApp() {
     };
 
     const handleUp = (e: PointerEvent) => {
+      if (pendingCanvasPanRef.current?.pointerId === e.pointerId) {
+        pendingCanvasPanRef.current = null;
+      }
       if (panDragRef.current && e.pointerId === panDragRef.current.pointerId) {
         panDragRef.current = null;
       }
@@ -1060,7 +1099,12 @@ export default function CloudArchPuzzleApp() {
           width: 18px; height: 18px; border-radius: 50%; cursor: crosshair;
           border: 2.5px solid #f48fb1; background: white; transition: all 0.15s; z-index: 5;
           box-shadow: 0 2px 6px rgba(244,143,177,0.2);
-          touch-action: manipulation;
+          touch-action: none;
+        }
+        @media (hover: none), (pointer: coarse) {
+          .conn-port {
+            width: 30px; height: 30px; bottom: -12px; border-width: 3px;
+          }
         }
         .conn-port:hover { background: #f48fb1; transform: translateX(-50%) scale(1.3); box-shadow: 0 3px 14px rgba(244,143,177,0.4); }
         .del-btn {
@@ -1195,7 +1239,15 @@ export default function CloudArchPuzzleApp() {
                     {compact ? '下の一覧をタップしてキャンバスに追加！' : 'コンポーネントをここにドロップ！'}
                   </div>
                   <div style={{ fontSize: compact ? 12 : 13, marginTop: 8, color: '#6a1b9a', opacity: 0.85, fontWeight: 600, lineHeight: 1.45 }}>
-                    {compact ? 'ノード下の●をタップして、もう一方の●で接続' : 'ノードの下の●ポートをクリックして接続線を引こう'}
+                    {compact ? (
+                      <>
+                        空いた所を指でドラッグして画面移動・2指でズーム
+                        <br />
+                        <span style={{ display: 'inline-block', marginTop: 4 }}>ノード下の●同士で接続</span>
+                      </>
+                    ) : (
+                      'ノードの下の●ポートをクリックして接続線を引こう'
+                    )}
                   </div>
                 </div>
               </div>
@@ -1290,6 +1342,18 @@ export default function CloudArchPuzzleApp() {
                 background: 'rgba(255,255,255,0.2)',
                 backgroundImage: `radial-gradient(circle, rgba(244,143,177,0.09) 1.2px, transparent 1.2px)`,
                 backgroundSize: '30px 30px',
+              }}
+              onPointerDown={e => {
+                if (e.button !== 0) return;
+                if (e.target !== e.currentTarget) return;
+                if (e.pointerType !== 'touch' && e.pointerType !== 'pen' && e.pointerType !== 'mouse') return;
+                pendingCanvasPanRef.current = {
+                  pointerId: e.pointerId,
+                  startX: e.clientX,
+                  startY: e.clientY,
+                  startPanX: viewPanRef.current.x,
+                  startPanY: viewPanRef.current.y,
+                };
               }}
             >
             {/* SVG Connections */}
