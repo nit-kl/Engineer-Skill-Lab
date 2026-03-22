@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import type {
   DragEvent as ReactDragEvent,
   PointerEvent as ReactPointerEvent,
@@ -112,7 +113,7 @@ const CATEGORIES: Category[] = [
     items: [
       { type: 'queue', label: 'メッセージキュー', icon: '📬', desc: '非同期メッセージング', color: '#FFB74D' },
       { type: 'stream', label: 'イベントストリーム', icon: '🌊', desc: 'イベントログ・ストリーム処理', color: '#29B6F6' },
-      { type: 'worker', label: 'ワーカー', icon: '⚙️', desc: 'バックグラウンド処理', color: '#A1887F' },
+      { type: 'worker', label: 'ジョブワーカー', icon: '⚙️', desc: 'キューからジョブ取得・非同期処理', color: '#A1887F' },
       { type: 'scheduler', label: 'スケジューラー', icon: '⏰', desc: 'Cron/定期実行', color: '#FFAB91' },
     ],
   },
@@ -214,33 +215,41 @@ const CHALLENGES: Challenge[] = [
     diffColor: '#F4A261',
     emoji: '🎬',
     description: '動画のアップロード・エンコード・配信を行うプラットフォームを構築しよう！大容量の非同期処理と高速配信がポイント。',
-    required: ['client', 'dns', 'lb', 'api', 'queue', 'worker', 'storage', 'cdn'],
+    required: ['client', 'dns', 'lb', 'web', 'api', 'auth', 'db', 'storage', 'queue', 'worker', 'cdn'],
     connections: [
       ['client', 'dns'],
       ['dns', 'lb'],
-      ['dns', 'cdn'],
+      ['lb', 'web'],
       ['lb', 'api'],
+      ['client', 'auth'],
+      ['api', 'auth'],
+      ['api', 'db'],
       ['api', 'storage'],
       ['api', 'queue'],
       ['queue', 'worker'],
       ['worker', 'storage'],
-      ['storage', 'cdn'],
+      ['dns', 'cdn'],
+      ['cdn', 'storage'],
     ],
     explanation:
-      'アップロード系はDNSでAPI向けを解決してLB経由で入り、配信視聴は別ホスト名をDNSで解決してCDNへ向かう想定です（図ではDNSからCDNへ分岐）。APIが動画をストレージに保存しキューにジョブを投入。ワーカーが非同期エンコードし、ストレージをCDNのオリジンとして視聴者へ高速配信します。',
+      'Webサイトの操作はDNS→LB→Web→APIの流れ（一覧・検索など）。動画用ホスト名はDNS→CDNでエッジへ。認証はクライアントとAPIの両方から認証サービスへ。APIはメタデータをRDBに、動画ファイルはオブジェクトストレージに、変換依頼はメッセージキューへ。ジョブワーカーがキューから取り出してストレージ上の動画を変換。視聴はDNS→CDN→オブジェクトストレージで重い動画をエッジ配信します。',
     alternativePatterns: [
       {
-        required: ['client', 'dns', 'lb', 'api', 'queue', 'worker', 'storage', 'cdn'],
+        required: ['client', 'dns', 'lb', 'web', 'api', 'auth', 'db', 'storage', 'queue', 'worker', 'cdn'],
         connections: [
           ['client', 'dns'],
           ['dns', 'lb'],
-          ['lb', 'cdn'],
-          ['lb', 'api'],
+          ['lb', 'web'],
+          ['web', 'api'],
+          ['client', 'auth'],
+          ['api', 'auth'],
+          ['api', 'db'],
           ['api', 'storage'],
           ['api', 'queue'],
           ['queue', 'worker'],
           ['worker', 'storage'],
-          ['storage', 'cdn'],
+          ['dns', 'cdn'],
+          ['cdn', 'storage'],
         ],
       },
     ],
@@ -306,7 +315,7 @@ const CHALLENGES: Challenge[] = [
       ['worker', 'email'],
     ],
     explanation:
-      'CDNを「静的配信とAPIオリジンへのルーティングをまとめるエッジ」とみなした一本化です。DNS→CDN→WAF→API Gatewayの順で保護しつつバックエンドへ。認証後、APIがRDBで在庫管理し外部決済APIと連携。注文確定後はキューで非同期にワーカーが確認メールを送信します。',
+      'CDNを「静的配信とAPIオリジンへのルーティングをまとめるエッジ」とみなした一本化です。DNS→CDN→WAF→API Gatewayの順で保護しつつバックエンドへ。認証後、APIがRDBで在庫管理し外部決済APIと連携。注文確定後はキューで非同期にジョブワーカーが確認メールを送信します。',
     alternativePatterns: [
       {
         required: [
@@ -400,7 +409,7 @@ const CHALLENGES: Challenge[] = [
       ['tsdb', 'monitor'],
     ],
     explanation:
-      'センサー・ゲートウェイ（図上はクライアントノード）からAPI Gateway経由でイベントストリームへ送信。ワーカーがリアルタイム処理して時系列DBに蓄積。ETLパイプラインでDWHに集約し分析。監視サービスが異常値を検知してアラートを発行します。',
+      'センサー・ゲートウェイ（図上はクライアントノード）からAPI Gateway経由でイベントストリームへ送信。ジョブワーカーがリアルタイム処理して時系列DBに蓄積。ETLパイプラインでDWHに集約し分析。監視サービスが異常値を検知してアラートを発行します。',
     alternativePatterns: [
       {
         required: ['client', 'gateway', 'stream', 'worker', 'tsdb', 'etl', 'dwh', 'monitor'],
@@ -1802,139 +1811,6 @@ export default function CloudArchPuzzleApp() {
           )}
         </div>
         </div>
-
-        {/* Right Panel - Result */}
-        {result && (
-          <div
-            style={{
-              position: 'fixed',
-              inset: 0,
-              zIndex: 80,
-              background: 'rgba(252,228,236,0.45)',
-              backdropFilter: 'blur(12px)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              padding: 18,
-              overflow: 'hidden',
-              animation: 'fadeUp 0.2s ease',
-            }}
-            onClick={() => {
-              setResult(null);
-              setCelebrateAnim(false);
-            }}
-          >
-            <div
-              role="dialog"
-              aria-modal="true"
-              style={{
-                width: 'min(900px, 96vw)',
-                maxHeight: '86vh',
-                background: 'rgba(255,255,255,0.78)',
-                border: '2px solid rgba(244,143,177,0.10)',
-                borderRadius: 24,
-                boxShadow: '0 30px 80px rgba(173,20,87,0.18)',
-                overflow: 'hidden',
-                display: 'flex',
-                flexDirection: 'column',
-                animation: 'pop 0.3s ease',
-              }}
-              onClick={e => e.stopPropagation()}
-            >
-              <div style={{ padding: '16px 16px 12px', borderBottom: '1.5px solid rgba(244,143,177,0.05)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-                <h3 style={{ fontSize: 16, color: '#880e4f', fontFamily: "'M PLUS Rounded 1c', sans-serif", fontWeight: 800 }}>📊 採点結果</h3>
-                <button
-                  onClick={() => {
-                    setResult(null);
-                    setCelebrateAnim(false);
-                  }}
-                  style={{
-                    background: '#fce4ec',
-                    border: 'none',
-                    color: '#e57373',
-                    cursor: 'pointer',
-                    fontSize: 12,
-                    width: 26,
-                    height: 26,
-                    borderRadius: 9,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontWeight: 700,
-                  }}
-                >
-                  ✕
-                </button>
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}>
-                <div
-                  style={{
-                    width: 96,
-                    height: 96,
-                    borderRadius: '50%',
-                    padding: 4,
-                    background: `conic-gradient(${
-                      result.score >= 80 ? '#81c784' : result.score >= 50 ? '#ffb74d' : '#e57373'
-                    } ${result.score * 3.6}deg, #f5f5f5 0deg)`,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    boxShadow: `0 4px 18px ${result.score >= 80 ? 'rgba(129,199,132,0.2)' : 'rgba(255,183,77,0.2)'}`,
-                  }}
-                >
-                  <div style={{ width: 80, height: 80, borderRadius: '50%', background: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column' }}>
-                    <span style={{ fontSize: 28, fontFamily: "'M PLUS Rounded 1c', sans-serif", fontWeight: 800, color: result.score >= 80 ? '#2e7d32' : result.score >= 50 ? '#e65100' : '#c62828' }}>
-                      {result.score}
-                    </span>
-                    <span style={{ fontSize: 12, color: '#546e7a', fontWeight: 700 }}>てん</span>
-                  </div>
-                </div>
-              </div>
-
-              <div
-                style={{
-                  padding: '8px 12px',
-                  borderRadius: 14,
-                  textAlign: 'center',
-                  background: result.score === 100 ? '#e8f5e9' : result.score >= 70 ? '#fff3e0' : '#fce4ec',
-                  border: `1.5px solid ${
-                    result.score === 100 ? '#81c78430' : result.score >= 70 ? '#ffb74d30' : '#e5737330'
-                  }`,
-                }}
-              >
-                <span
-                  style={{
-                    fontSize: 15,
-                    fontWeight: 800,
-                    color: result.score === 100 ? '#1b5e20' : result.score >= 70 ? '#bf360c' : '#b71c1c',
-                  }}
-                >
-                  {result.score === 100 ? '🎉 パーフェクト！すごい！' : result.score >= 70 ? '👍 おしい！あと少し！' : '💪 がんばろう！'}
-                </span>
-              </div>
-
-              {rank ? (
-                <div style={{ marginTop: 10 }}>
-                  <div style={{ fontSize: 14, color: '#6a1b9a', fontWeight: 800, marginBottom: 4 }}>
-                    ランク：<span style={{ color: '#c2185b' }}>{rank}</span>
-                  </div>
-                  {learning?.rankDescriptions?.[rank] ? (
-                    <div style={{ fontSize: 13, color: '#37474f', lineHeight: 1.65 }}>{learning.rankDescriptions[rank]}</div>
-                  ) : (
-                    <div style={{ fontSize: 13, color: '#78909c', lineHeight: 1.65 }}>ランク解説を読み込み中...</div>
-                  )}
-                </div>
-              ) : null}
-            </div>
-
-            <div style={{ padding: '14px 16px 18px', flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 12 }}>
-              {rank && youtubeForChallenge ? <YoutubeEntryPoint content={youtubeForChallenge} rank={rank} /> : null}
-            </div>
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Status Bar */}
@@ -1967,6 +1843,147 @@ export default function CloudArchPuzzleApp() {
               : '🔍 ホイールで拡大縮小 · ホイールクリックで移動 · ●で接続'}
         </span>
       </div>
+
+      {result &&
+        typeof document !== 'undefined' &&
+        createPortal(
+          <div
+            style={{
+              position: 'fixed',
+              inset: 0,
+              zIndex: 100000,
+              background: 'rgba(252,228,236,0.45)',
+              backdropFilter: 'blur(12px)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: 18,
+              overflow: 'hidden',
+              animation: 'fadeUp 0.2s ease',
+              pointerEvents: 'auto',
+            }}
+            onClick={() => {
+              setResult(null);
+              setCelebrateAnim(false);
+            }}
+          >
+            <div
+              role="dialog"
+              aria-modal="true"
+              style={{
+                width: 'min(900px, 96vw)',
+                maxHeight: '86vh',
+                background: 'rgba(255,255,255,0.78)',
+                border: '2px solid rgba(244,143,177,0.10)',
+                borderRadius: 24,
+                boxShadow: '0 30px 80px rgba(173,20,87,0.18)',
+                overflow: 'hidden',
+                display: 'flex',
+                flexDirection: 'column',
+                animation: 'pop 0.3s ease',
+                pointerEvents: 'auto',
+              }}
+              onClick={e => e.stopPropagation()}
+            >
+              <div style={{ padding: '16px 16px 12px', borderBottom: '1.5px solid rgba(244,143,177,0.05)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                  <h3 style={{ fontSize: 16, color: '#880e4f', fontFamily: "'M PLUS Rounded 1c', sans-serif", fontWeight: 800 }}>📊 採点結果</h3>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setResult(null);
+                      setCelebrateAnim(false);
+                    }}
+                    style={{
+                      position: 'relative',
+                      zIndex: 2,
+                      background: '#fce4ec',
+                      border: 'none',
+                      color: '#e57373',
+                      cursor: 'pointer',
+                      fontSize: 12,
+                      width: 26,
+                      height: 26,
+                      borderRadius: 9,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontWeight: 700,
+                      flexShrink: 0,
+                    }}
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}>
+                  <div
+                    style={{
+                      width: 96,
+                      height: 96,
+                      borderRadius: '50%',
+                      padding: 4,
+                      background: `conic-gradient(${
+                        result.score >= 80 ? '#81c784' : result.score >= 50 ? '#ffb74d' : '#e57373'
+                      } ${result.score * 3.6}deg, #f5f5f5 0deg)`,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      boxShadow: `0 4px 18px ${result.score >= 80 ? 'rgba(129,199,132,0.2)' : 'rgba(255,183,77,0.2)'}`,
+                    }}
+                  >
+                    <div style={{ width: 80, height: 80, borderRadius: '50%', background: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column' }}>
+                      <span style={{ fontSize: 28, fontFamily: "'M PLUS Rounded 1c', sans-serif", fontWeight: 800, color: result.score >= 80 ? '#2e7d32' : result.score >= 50 ? '#e65100' : '#c62828' }}>
+                        {result.score}
+                      </span>
+                      <span style={{ fontSize: 12, color: '#546e7a', fontWeight: 700 }}>てん</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div
+                  style={{
+                    padding: '8px 12px',
+                    borderRadius: 14,
+                    textAlign: 'center',
+                    background: result.score === 100 ? '#e8f5e9' : result.score >= 70 ? '#fff3e0' : '#fce4ec',
+                    border: `1.5px solid ${
+                      result.score === 100 ? '#81c78430' : result.score >= 70 ? '#ffb74d30' : '#e5737330'
+                    }`,
+                  }}
+                >
+                  <span
+                    style={{
+                      fontSize: 15,
+                      fontWeight: 800,
+                      color: result.score === 100 ? '#1b5e20' : result.score >= 70 ? '#bf360c' : '#b71c1c',
+                    }}
+                  >
+                    {result.score === 100 ? '🎉 パーフェクト！すごい！' : result.score >= 70 ? '👍 おしい！あと少し！' : '💪 がんばろう！'}
+                  </span>
+                </div>
+
+                {rank ? (
+                  <div style={{ marginTop: 10 }}>
+                    <div style={{ fontSize: 14, color: '#6a1b9a', fontWeight: 800, marginBottom: 4 }}>
+                      ランク：<span style={{ color: '#c2185b' }}>{rank}</span>
+                    </div>
+                    {learning?.rankDescriptions?.[rank] ? (
+                      <div style={{ fontSize: 13, color: '#37474f', lineHeight: 1.65 }}>{learning.rankDescriptions[rank]}</div>
+                    ) : (
+                      <div style={{ fontSize: 13, color: '#78909c', lineHeight: 1.65 }}>ランク解説を読み込み中...</div>
+                    )}
+                  </div>
+                ) : null}
+              </div>
+
+              <div style={{ padding: '14px 16px 18px', flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {rank && youtubeForChallenge ? <YoutubeEntryPoint content={youtubeForChallenge} rank={rank} /> : null}
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
     </div>
   );
 }

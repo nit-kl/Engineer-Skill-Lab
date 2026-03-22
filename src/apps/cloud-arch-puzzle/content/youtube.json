@@ -87,6 +87,35 @@
           "chapters": [{ "start": "0:00", "title": "動的Webアプリの基本構成（レッスン2）" }]
         }
       }
+    },
+    "3": {
+      "rankToVideo": {
+        "S": {
+          "videoId": "m1PI-Cjelhw",
+          "url": "https://youtu.be/m1PI-Cjelhw",
+          "chapters": [{ "start": "0:00", "title": "動画配信プラットフォーム（レッスン3）" }]
+        },
+        "A": {
+          "videoId": "m1PI-Cjelhw",
+          "url": "https://youtu.be/m1PI-Cjelhw",
+          "chapters": [{ "start": "0:00", "title": "動画配信プラットフォーム（レッスン3）" }]
+        },
+        "B": {
+          "videoId": "m1PI-Cjelhw",
+          "url": "https://youtu.be/m1PI-Cjelhw",
+          "chapters": [{ "start": "0:00", "title": "動画配信プラットフォーム（レッスン3）" }]
+        },
+        "C": {
+          "videoId": "m1PI-Cjelhw",
+          "url": "https://youtu.be/m1PI-Cjelhw",
+          "chapters": [{ "start": "0:00", "title": "動画配信プラットフォーム（レッスン3）" }]
+        },
+        "D": {
+          "videoId": "m1PI-Cjelhw",
+          "url": "https://youtu.be/m1PI-Cjelhw",
+          "chapters": [{ "start": "0:00", "title": "動画配信プラットフォーム（レッスン3）" }]
+        }
+      }
     }
   }
 }
