@@ -651,6 +651,8 @@ export default function CloudArchPuzzleApp() {
     panX: number;
     panY: number;
   } | null>(null);
+  /** 2指ピンチの直前の指間距離（キャンバス上でズーム用） */
+  const pinchDistRef = useRef<number | null>(null);
 
   const [viewScale, setViewScale] = useState(1);
   const [viewPan, setViewPan] = useState(() => ({ ...DEFAULT_VIEW_PAN }));
@@ -739,7 +741,6 @@ export default function CloudArchPuzzleApp() {
     const el = canvasRef.current;
     if (!el) return;
     const onWheel = (e: WheelEvent) => {
-      if (e.ctrlKey) return;
       e.preventDefault();
       const factor = e.deltaY < 0 ? ZOOM_STEP : 1 / ZOOM_STEP;
       const rect = el.getBoundingClientRect();
@@ -756,6 +757,53 @@ export default function CloudArchPuzzleApp() {
     el.addEventListener('wheel', onWheel, { passive: false });
     return () => el.removeEventListener('wheel', onWheel);
   }, []);
+
+  /** スマホ・タブレット: 2指ピンチでキャンバス拡大縮小 */
+  useEffect(() => {
+    const el = canvasRef.current;
+    if (!el) return;
+
+    const onTouchStart = (e: TouchEvent) => {
+      if (e.touches.length === 2) {
+        e.preventDefault();
+        const t0 = e.touches[0];
+        const t1 = e.touches[1];
+        pinchDistRef.current = Math.hypot(t1.clientX - t0.clientX, t1.clientY - t0.clientY);
+      }
+    };
+
+    const onTouchMove = (e: TouchEvent) => {
+      if (e.touches.length < 2 || pinchDistRef.current == null || pinchDistRef.current <= 0) return;
+      e.preventDefault();
+      const t0 = e.touches[0];
+      const t1 = e.touches[1];
+      const dist = Math.hypot(t1.clientX - t0.clientX, t1.clientY - t0.clientY);
+      const midX = (t0.clientX + t1.clientX) / 2;
+      const midY = (t0.clientY + t1.clientY) / 2;
+      const rect = el.getBoundingClientRect();
+      const lx = midX - rect.left;
+      const ly = midY - rect.top;
+      const prev = pinchDistRef.current;
+      const factor = dist / prev;
+      pinchDistRef.current = dist;
+      zoomViewAroundCanvasPoint(factor, lx, ly);
+    };
+
+    const endPinch = (e: TouchEvent) => {
+      if (e.touches.length < 2) pinchDistRef.current = null;
+    };
+
+    el.addEventListener('touchstart', onTouchStart, { passive: false });
+    el.addEventListener('touchmove', onTouchMove, { passive: false });
+    el.addEventListener('touchend', endPinch);
+    el.addEventListener('touchcancel', endPinch);
+    return () => {
+      el.removeEventListener('touchstart', onTouchStart);
+      el.removeEventListener('touchmove', onTouchMove);
+      el.removeEventListener('touchend', endPinch);
+      el.removeEventListener('touchcancel', endPinch);
+    };
+  }, [zoomViewAroundCanvasPoint]);
 
   const handleDragStart = (e: ReactDragEvent<HTMLDivElement>, comp: CatalogItem) => {
     e.dataTransfer.setData('component', JSON.stringify(comp));
@@ -1090,6 +1138,8 @@ export default function CloudArchPuzzleApp() {
             /* z-auto と並べると flex が後勝ちで誤った合成になるが、-1 にすると DnD のヒットが効かない環境がある。1 + ワークエリア 2 で順序を固定 */
             zIndex: 1,
             overflow: 'hidden',
+            /* 2指ピンチを自前で扱う（ブラウザのページズームと競合させない） */
+            touchAction: 'none',
             ...(celebrateAnim ? { animation: 'celebrate 0.5s ease' } : {}),
           }}
           onDrop={handleDrop}
@@ -1839,8 +1889,8 @@ export default function CloudArchPuzzleApp() {
           {connecting
             ? '🔗 接続先の●をタップ'
             : compact
-              ? '🔍 右上の±で拡大 · ●で接続'
-              : '🔍 ホイールで拡大縮小 · ホイールクリックで移動 · ●で接続'}
+              ? '🔍 右上の±か2指ピンチで拡大 · ●で接続'
+              : '🔍 ホイールで拡大縮小 · ホイールクリックで移動 · 2指ピンチでも拡大 · ●で接続'}
         </span>
       </div>
 
