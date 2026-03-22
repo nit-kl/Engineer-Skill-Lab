@@ -116,6 +116,35 @@
           "chapters": [{ "start": "0:00", "title": "動画配信プラットフォーム（レッスン3）" }]
         }
       }
+    },
+    "4": {
+      "rankToVideo": {
+        "S": {
+          "videoId": "CvTgJkdWcfA",
+          "url": "https://youtu.be/CvTgJkdWcfA",
+          "chapters": [{ "start": "0:00", "title": "リアルタイムチャットアプリ（レッスン4）" }]
+        },
+        "A": {
+          "videoId": "CvTgJkdWcfA",
+          "url": "https://youtu.be/CvTgJkdWcfA",
+          "chapters": [{ "start": "0:00", "title": "リアルタイムチャットアプリ（レッスン4）" }]
+        },
+        "B": {
+          "videoId": "CvTgJkdWcfA",
+          "url": "https://youtu.be/CvTgJkdWcfA",
+          "chapters": [{ "start": "0:00", "title": "リアルタイムチャットアプリ（レッスン4）" }]
+        },
+        "C": {
+          "videoId": "CvTgJkdWcfA",
+          "url": "https://youtu.be/CvTgJkdWcfA",
+          "chapters": [{ "start": "0:00", "title": "リアルタイムチャットアプリ（レッスン4）" }]
+        },
+        "D": {
+          "videoId": "CvTgJkdWcfA",
+          "url": "https://youtu.be/CvTgJkdWcfA",
+          "chapters": [{ "start": "0:00", "title": "リアルタイムチャットアプリ（レッスン4）" }]
+        }
+      }
     }
   }
 }
