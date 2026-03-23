@@ -145,6 +145,35 @@
           "chapters": [{ "start": "0:00", "title": "リアルタイムチャットアプリ（レッスン4）" }]
         }
       }
+    },
+    "5": {
+      "rankToVideo": {
+        "S": {
+          "videoId": "Kghkhitt7x0",
+          "url": "https://youtu.be/Kghkhitt7x0",
+          "chapters": [{ "start": "0:00", "title": "EC決済フルスタック（レッスン5）" }]
+        },
+        "A": {
+          "videoId": "Kghkhitt7x0",
+          "url": "https://youtu.be/Kghkhitt7x0",
+          "chapters": [{ "start": "0:00", "title": "EC決済フルスタック（レッスン5）" }]
+        },
+        "B": {
+          "videoId": "Kghkhitt7x0",
+          "url": "https://youtu.be/Kghkhitt7x0",
+          "chapters": [{ "start": "0:00", "title": "EC決済フルスタック（レッスン5）" }]
+        },
+        "C": {
+          "videoId": "Kghkhitt7x0",
+          "url": "https://youtu.be/Kghkhitt7x0",
+          "chapters": [{ "start": "0:00", "title": "EC決済フルスタック（レッスン5）" }]
+        },
+        "D": {
+          "videoId": "Kghkhitt7x0",
+          "url": "https://youtu.be/Kghkhitt7x0",
+          "chapters": [{ "start": "0:00", "title": "EC決済フルスタック（レッスン5）" }]
+        }
+      }
     }
   }
 }
