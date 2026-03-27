@@ -642,6 +642,7 @@ export default function CloudArchPuzzleApp() {
     CATEGORIES.reduce((a, c) => ({ ...a, [c.name]: true }), {} as Record<string, boolean>)
   );
   const [searchText, setSearchText] = useState('');
+  const [catalogOpen, setCatalogOpen] = useState(false);
 
   const canvasRef = useRef<HTMLDivElement | null>(null);
   const dragOffset = useRef({ x: 0, y: 0 });
@@ -727,6 +728,41 @@ export default function CloudArchPuzzleApp() {
     setViewScale(1);
     setViewPan({ ...DEFAULT_VIEW_PAN });
   }, []);
+
+  const fitViewToNodes = useCallback(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    if (nodes.length === 0) {
+      resetView();
+      return;
+    }
+    const rect = canvas.getBoundingClientRect();
+    const pad = compact ? 18 : 28;
+    const minX = Math.min(...nodes.map(n => n.x));
+    const minY = Math.min(...nodes.map(n => n.y));
+    const maxX = Math.max(...nodes.map(n => n.x + NODE_W));
+    const maxY = Math.max(...nodes.map(n => n.y + NODE_H));
+    const bw = Math.max(1, maxX - minX);
+    const bh = Math.max(1, maxY - minY);
+    const availW = Math.max(1, rect.width - pad * 2);
+    const availH = Math.max(1, rect.height - pad * 2);
+    const nextScale = Math.min(MAX_VIEW_SCALE, Math.max(MIN_VIEW_SCALE, Math.min(availW / bw, availH / bh)));
+    const usedW = bw * nextScale;
+    const usedH = bh * nextScale;
+    const extraX = Math.max(0, availW - usedW);
+    const extraY = Math.max(0, availH - usedH);
+    setViewScale(nextScale);
+    setViewPan({
+      x: pad + extraX / 2 - minX * nextScale,
+      y: pad + extraY / 2 - minY * nextScale,
+    });
+  }, [compact, nodes, resetView]);
+
+  useEffect(() => {
+    if (!compact) return;
+    if (nodes.length > 0) return;
+    setCatalogOpen(false);
+  }, [compact, nodes.length]);
 
   const zoomViewAroundCanvasPoint = useCallback((factor: number, lx: number, ly: number) => {
     const pan = viewPanRef.current;
@@ -1045,15 +1081,152 @@ export default function CloudArchPuzzleApp() {
 
   const catalogItemCount = useMemo(() => filteredCats.reduce((n, c) => n + c.items.length, 0), [filteredCats]);
 
+  const CatalogBody = (
+    <>
+      <div style={{ padding: '12px 12px 8px' }}>
+        <h3
+          style={{
+            fontSize: 15,
+            color: '#880e4f',
+            fontFamily: "'M PLUS Rounded 1c', sans-serif",
+            fontWeight: 800,
+            marginBottom: 8,
+          }}
+        >
+          🧱 コンポーネント
+        </h3>
+        <div style={{ position: 'relative' }}>
+          <span
+            style={{
+              position: 'absolute',
+              left: 9,
+              top: '50%',
+              transform: 'translateY(-50%)',
+              fontSize: 13,
+              opacity: 0.4,
+            }}
+          >
+            🔍
+          </span>
+          <input
+            className="search-input"
+            placeholder="検索..."
+            value={searchText}
+            onChange={e => setSearchText(e.target.value)}
+          />
+        </div>
+      </div>
+      <div
+        style={{
+          flex: 1,
+          overflow: 'auto',
+          padding: '2px 10px 10px',
+          WebkitOverflowScrolling: 'touch',
+        }}
+      >
+        {filteredCats.map(cat => (
+          <div key={cat.name} style={{ marginBottom: 2 }}>
+            <div className="cat-header" onClick={() => toggleCat(cat.name)}>
+              <span
+                style={{
+                  fontSize: 11,
+                  color: '#7b1fa2',
+                  transition: 'transform 0.2s',
+                  transform: expandedCats[cat.name] ? 'rotate(90deg)' : 'rotate(0deg)',
+                }}
+              >
+                ▶
+              </span>
+              <span style={{ fontSize: 13, fontWeight: 700, color: '#4a148c' }}>
+                {cat.icon} {cat.name}
+              </span>
+              <span style={{ fontSize: 11, color: '#8e24aa', marginLeft: 'auto', fontWeight: 600 }}>{cat.items.length}</span>
+            </div>
+            {expandedCats[cat.name] && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '2px 0 4px 6px' }}>
+                {cat.items.map(comp => (
+                  <div
+                    key={comp.type}
+                    className="comp-card"
+                    draggable={!compact}
+                    onDragStart={compact ? undefined : e => handleDragStart(e, comp)}
+                    onClick={compact ? () => addComponentFromCatalog(comp) : undefined}
+                    role={compact ? 'button' : undefined}
+                    tabIndex={compact ? 0 : undefined}
+                    onKeyDown={
+                      compact
+                        ? e => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault();
+                              addComponentFromCatalog(comp);
+                            }
+                          }
+                        : undefined
+                    }
+                  >
+                    <div
+                      style={{
+                        width: 30,
+                        height: 30,
+                        borderRadius: 9,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        background: comp.color + '15',
+                        flexShrink: 0,
+                        fontSize: 15,
+                      }}
+                    >
+                      {comp.icon}
+                    </div>
+                    <div style={{ minWidth: 0 }}>
+                      <div
+                        style={{
+                          fontSize: 13,
+                          fontWeight: 700,
+                          color: '#263238',
+                          whiteSpace: 'nowrap',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                        }}
+                      >
+                        {comp.label}
+                      </div>
+                      <div style={{ fontSize: 11, color: '#546e7a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {comp.desc}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+      <div
+        style={{
+          padding: '6px 12px',
+          borderTop: '1px solid rgba(244,143,177,0.06)',
+          fontSize: 12,
+          color: '#6a1b9a',
+          textAlign: 'center',
+          fontWeight: 600,
+        }}
+      >
+        この問題 {catalogItemCount}種 / {filteredCats.length}カテゴリ
+      </div>
+    </>
+  );
+
   return (
     <div
       style={{
         width: '100%',
         maxWidth: '100vw',
         boxSizing: 'border-box',
-        height: compact ? 'calc(100vh - 88px)' : 'calc(100vh - 120px)',
+        height: compact ? 'calc(100dvh - 88px)' : 'calc(100vh - 120px)',
         minHeight: compact ? 0 : 520,
-        maxHeight: compact ? 'calc(100vh - 88px)' : 'calc(100vh - 120px)',
+        maxHeight: compact ? 'calc(100dvh - 88px)' : 'calc(100vh - 120px)',
         display: 'flex',
         flexDirection: 'column',
         background: 'linear-gradient(135deg, #fce4ec 0%, #e1f5fe 30%, #fff9c4 60%, #e8f5e9 100%)',
@@ -1118,6 +1291,7 @@ export default function CloudArchPuzzleApp() {
         .del-btn:hover { transform: scale(1.15); }
         @media (hover: none), (pointer: coarse) {
           .canvas-node .del-btn { opacity: 0.88; }
+          .del-btn { width: 28px; height: 28px; font-size: 13px; top: -10px; right: -10px; }
         }
         .btn {
           padding: 8px 16px; border-radius: 20px; border: none; cursor: pointer; font-size: 13px;
@@ -1236,12 +1410,12 @@ export default function CloudArchPuzzleApp() {
                       lineHeight: 1.4,
                     }}
                   >
-                    {compact ? '下の一覧をタップしてキャンバスに追加！' : 'コンポーネントをここにドロップ！'}
+                    {compact ? '下の「🧱 コンポーネント」を開いて追加！' : 'コンポーネントをここにドロップ！'}
                   </div>
                   <div style={{ fontSize: compact ? 12 : 13, marginTop: 8, color: '#6a1b9a', opacity: 0.85, fontWeight: 600, lineHeight: 1.45 }}>
                     {compact ? (
                       <>
-                        空いた所を指でドラッグして画面移動・2指でズーム
+                        空いた所を指でドラッグして移動・2指でズーム
                         <br />
                         <span style={{ display: 'inline-block', marginTop: 4 }}>ノード下の●同士で接続</span>
                       </>
@@ -1314,7 +1488,7 @@ export default function CloudArchPuzzleApp() {
                 type="button"
                 className="btn"
                 title="表示をリセット"
-                onClick={resetView}
+                onClick={fitViewToNodes}
                 style={{
                   padding: '4px 8px',
                   fontSize: compact ? 11 : 12,
@@ -1324,7 +1498,7 @@ export default function CloudArchPuzzleApp() {
                   border: '1.5px solid #e1bee7',
                 }}
               >
-                {compact ? '⌂' : '全体'}
+                {compact ? '⤢' : '全体'}
               </button>
             </div>
             <div
@@ -1670,130 +1844,24 @@ export default function CloudArchPuzzleApp() {
             pointerEvents: 'none',
           }}
         >
-        {/* Sidebar - Components (categorized with search) */}
-        <div
-          style={{
-            order: compact ? 2 : 0,
-            width: compact ? '100%' : 220,
-            maxHeight: compact ? 'min(38vh, 260px)' : undefined,
-            flexShrink: 0,
-            display: 'flex',
-            flexDirection: 'column',
-            background: 'rgba(255,255,255,0.42)',
-            backdropFilter: 'blur(12px)',
-            borderRight: compact ? 'none' : '2px solid rgba(244,143,177,0.06)',
-            borderTop: compact ? '2px solid rgba(244,143,177,0.08)' : 'none',
-            minHeight: compact ? 0 : undefined,
-            pointerEvents: 'auto',
-          }}
-        >
-          <div style={{ padding: '12px 12px 8px' }}>
-            <h3 style={{ fontSize: 15, color: '#880e4f', fontFamily: "'M PLUS Rounded 1c', sans-serif", fontWeight: 800, marginBottom: 8 }}>🧱 コンポーネント</h3>
-            <div style={{ position: 'relative' }}>
-              <span style={{ position: 'absolute', left: 9, top: '50%', transform: 'translateY(-50%)', fontSize: 13, opacity: 0.4 }}>🔍</span>
-              <input className="search-input" placeholder="検索..." value={searchText} onChange={e => setSearchText(e.target.value)} />
-            </div>
-          </div>
+        {/* Sidebar - Components (desktop only) */}
+        {!compact && (
           <div
             style={{
-              flex: 1,
-              overflow: 'auto',
-              padding: '2px 10px 10px',
-              WebkitOverflowScrolling: 'touch',
+              order: 0,
+              width: 220,
+              flexShrink: 0,
+              display: 'flex',
+              flexDirection: 'column',
+              background: 'rgba(255,255,255,0.42)',
+              backdropFilter: 'blur(12px)',
+              borderRight: '2px solid rgba(244,143,177,0.06)',
+              pointerEvents: 'auto',
             }}
           >
-            {filteredCats.map(cat => (
-              <div key={cat.name} style={{ marginBottom: 2 }}>
-                <div className="cat-header" onClick={() => toggleCat(cat.name)}>
-                  <span
-                    style={{
-                      fontSize: 11,
-                      color: '#7b1fa2',
-                      transition: 'transform 0.2s',
-                      transform: expandedCats[cat.name] ? 'rotate(90deg)' : 'rotate(0deg)',
-                    }}
-                  >
-                    ▶
-                  </span>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: '#4a148c' }}>
-                    {cat.icon} {cat.name}
-                  </span>
-                  <span style={{ fontSize: 11, color: '#8e24aa', marginLeft: 'auto', fontWeight: 600 }}>{cat.items.length}</span>
-                </div>
-                {expandedCats[cat.name] && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '2px 0 4px 6px' }}>
-                    {cat.items.map(comp => (
-                      <div
-                        key={comp.type}
-                        className="comp-card"
-                        draggable={!compact}
-                        onDragStart={compact ? undefined : e => handleDragStart(e, comp)}
-                        onClick={compact ? () => addComponentFromCatalog(comp) : undefined}
-                        role={compact ? 'button' : undefined}
-                        tabIndex={compact ? 0 : undefined}
-                        onKeyDown={
-                          compact
-                            ? e => {
-                                if (e.key === 'Enter' || e.key === ' ') {
-                                  e.preventDefault();
-                                  addComponentFromCatalog(comp);
-                                }
-                              }
-                            : undefined
-                        }
-                      >
-                        <div
-                          style={{
-                            width: 30,
-                            height: 30,
-                            borderRadius: 9,
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            background: comp.color + '15',
-                            flexShrink: 0,
-                            fontSize: 15,
-                          }}
-                        >
-                          {comp.icon}
-                        </div>
-                        <div style={{ minWidth: 0 }}>
-                          <div
-                            style={{
-                              fontSize: 13,
-                              fontWeight: 700,
-                              color: '#263238',
-                              whiteSpace: 'nowrap',
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis',
-                            }}
-                          >
-                            {comp.label}
-                          </div>
-                          <div style={{ fontSize: 11, color: '#546e7a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                            {comp.desc}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            ))}
+            {CatalogBody}
           </div>
-          <div
-            style={{
-              padding: '6px 12px',
-              borderTop: '1px solid rgba(244,143,177,0.06)',
-              fontSize: 12,
-              color: '#6a1b9a',
-              textAlign: 'center',
-              fontWeight: 600,
-            }}
-          >
-            この問題 {catalogItemCount}種 / {filteredCats.length}カテゴリ
-          </div>
-        </div>
+        )}
 
         {/* Main Canvas Area — UIオーバーレイ（pointer-events で下のボードへ透過） */}
         <div
@@ -1927,6 +1995,99 @@ export default function CloudArchPuzzleApp() {
         </div>
       </div>
 
+      {/* Mobile Bottom Sheet - Components */}
+      {compact && (
+        <div
+          style={{
+            position: 'absolute',
+            left: 0,
+            right: 0,
+            bottom: 0,
+            zIndex: 40,
+            pointerEvents: 'none',
+          }}
+        >
+          <div
+            style={{
+              pointerEvents: 'auto',
+              margin: 8,
+              borderRadius: 18,
+              background: 'rgba(255,255,255,0.88)',
+              border: '1.5px solid rgba(244,143,177,0.16)',
+              boxShadow: '0 18px 50px rgba(0,0,0,0.12)',
+              overflow: 'hidden',
+              backdropFilter: 'blur(12px)',
+              transform: catalogOpen ? 'translateY(0px)' : 'translateY(calc(100% - 56px))',
+              transition: 'transform 0.22s ease',
+              maxHeight: 'min(70dvh, 520px)',
+              display: 'flex',
+              flexDirection: 'column',
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => setCatalogOpen(v => !v)}
+              style={{
+                appearance: 'none',
+                width: '100%',
+                padding: '12px 14px',
+                border: 'none',
+                background: 'linear-gradient(135deg, rgba(244,143,177,0.18), rgba(255,138,101,0.12))',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 10,
+                cursor: 'pointer',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+                <span
+                  style={{
+                    width: 34,
+                    height: 34,
+                    borderRadius: 12,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    background: 'white',
+                    border: '1.5px solid rgba(244,143,177,0.18)',
+                    boxShadow: '0 2px 10px rgba(0,0,0,0.06)',
+                    flexShrink: 0,
+                  }}
+                >
+                  🧱
+                </span>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: 14, fontWeight: 900, color: '#880e4f', lineHeight: 1.2 }}>
+                    コンポーネント
+                  </div>
+                  <div style={{ fontSize: 11, color: '#6a1b9a', fontWeight: 700, opacity: 0.9, lineHeight: 1.2 }}>
+                    タップで追加（{catalogItemCount}種）
+                  </div>
+                </div>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+                <span
+                  style={{
+                    fontSize: 12,
+                    fontWeight: 900,
+                    color: '#6a1b9a',
+                    padding: '4px 10px',
+                    background: 'rgba(255,255,255,0.75)',
+                    border: '1.5px solid rgba(225,190,231,0.8)',
+                    borderRadius: 999,
+                  }}
+                >
+                  {catalogOpen ? '閉じる' : '開く'}
+                </span>
+                <span style={{ fontSize: 14, color: '#ad1457', fontWeight: 900 }}>{catalogOpen ? '▾' : '▴'}</span>
+              </div>
+            </button>
+            <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>{CatalogBody}</div>
+          </div>
+        </div>
+      )}
+
       {/* Status Bar */}
       <div
         style={{
@@ -1944,6 +2105,7 @@ export default function CloudArchPuzzleApp() {
           flexShrink: 0,
           fontWeight: 600,
           pointerEvents: 'none',
+          paddingBottom: compact ? 64 : undefined,
         }}
       >
         <span style={{ lineHeight: 1.35 }}>
