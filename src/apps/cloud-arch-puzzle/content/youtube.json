@@ -203,6 +203,64 @@
           "chapters": [{ "start": "0:00", "title": "SNSアプリケーション（レッスン6）" }]
         }
       }
+    },
+    "7": {
+      "rankToVideo": {
+        "S": {
+          "videoId": "LDbYHmdhkTc",
+          "url": "https://youtu.be/LDbYHmdhkTc",
+          "chapters": [{ "start": "0:00", "title": "IoTデータ分析基盤（レッスン7）" }]
+        },
+        "A": {
+          "videoId": "LDbYHmdhkTc",
+          "url": "https://youtu.be/LDbYHmdhkTc",
+          "chapters": [{ "start": "0:00", "title": "IoTデータ分析基盤（レッスン7）" }]
+        },
+        "B": {
+          "videoId": "LDbYHmdhkTc",
+          "url": "https://youtu.be/LDbYHmdhkTc",
+          "chapters": [{ "start": "0:00", "title": "IoTデータ分析基盤（レッスン7）" }]
+        },
+        "C": {
+          "videoId": "LDbYHmdhkTc",
+          "url": "https://youtu.be/LDbYHmdhkTc",
+          "chapters": [{ "start": "0:00", "title": "IoTデータ分析基盤（レッスン7）" }]
+        },
+        "D": {
+          "videoId": "LDbYHmdhkTc",
+          "url": "https://youtu.be/LDbYHmdhkTc",
+          "chapters": [{ "start": "0:00", "title": "IoTデータ分析基盤（レッスン7）" }]
+        }
+      }
+    },
+    "8": {
+      "rankToVideo": {
+        "S": {
+          "videoId": "d8FWFS2Bnyo",
+          "url": "https://youtu.be/d8FWFS2Bnyo",
+          "chapters": [{ "start": "0:00", "title": "コンテナとCI/CDの本番構成（レッスン8）" }]
+        },
+        "A": {
+          "videoId": "d8FWFS2Bnyo",
+          "url": "https://youtu.be/d8FWFS2Bnyo",
+          "chapters": [{ "start": "0:00", "title": "コンテナとCI/CDの本番構成（レッスン8）" }]
+        },
+        "B": {
+          "videoId": "d8FWFS2Bnyo",
+          "url": "https://youtu.be/d8FWFS2Bnyo",
+          "chapters": [{ "start": "0:00", "title": "コンテナとCI/CDの本番構成（レッスン8）" }]
+        },
+        "C": {
+          "videoId": "d8FWFS2Bnyo",
+          "url": "https://youtu.be/d8FWFS2Bnyo",
+          "chapters": [{ "start": "0:00", "title": "コンテナとCI/CDの本番構成（レッスン8）" }]
+        },
+        "D": {
+          "videoId": "d8FWFS2Bnyo",
+          "url": "https://youtu.be/d8FWFS2Bnyo",
+          "chapters": [{ "start": "0:00", "title": "コンテナとCI/CDの本番構成（レッスン8）" }]
+        }
+      }
     }
   }
 }
