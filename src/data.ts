@@ -26,11 +26,12 @@ export const appsData: SkillApp[] = [
   {
     id: 'api-design-workshop',
     title: 'API設計ワークショップ',
-    description: 'REST/GraphQLのエンドポイントを設計し、リクエスト/レスポンスをプレビュー。',
+    description:
+      'HTTPメソッド・ステータスコード・RESTfulなURL・JSONの形など、全30問のクイズでAPI設計の基礎をインタラクティブに学べます。',
     category: 'バックエンド',
     difficulty: 2,
-    status: 'designing',
-    tags: ['API', 'REST', 'GraphQL', '設計'],
+    status: 'available',
+    tags: ['API', 'REST', 'HTTP', '設計'],
     icon: '🔌'
   },
   {

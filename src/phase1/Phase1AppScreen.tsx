@@ -3,10 +3,12 @@ import { ChevronLeft } from 'lucide-react';
 import { appsData } from '../data';
 import CloudArchPuzzleApp from '../apps/cloud-arch-puzzle/App';
 import SqlDojoApp from '../apps/sql-dojo/App';
+import APIDesignWorkshopApp from '../apps/api-design-workshop/App';
 
 const APP_COMPONENTS: Record<string, ComponentType> = {
   'cloud-arch-puzzle': CloudArchPuzzleApp,
   'sql-dojo': SqlDojoApp,
+  'api-design-workshop': APIDesignWorkshopApp,
 };
 
 export default function Phase1AppScreen(props: { appId: string; onExit: () => void }) {
@@ -15,7 +17,8 @@ export default function Phase1AppScreen(props: { appId: string; onExit: () => vo
   const Component = APP_COMPONENTS[appId];
   const isCloudArchPuzzle = appId === 'cloud-arch-puzzle';
   const isSqlDojo = appId === 'sql-dojo';
-  const isFullBleed = isCloudArchPuzzle || isSqlDojo;
+  const isApiDesignWorkshop = appId === 'api-design-workshop';
+  const isFullBleed = isCloudArchPuzzle || isSqlDojo || isApiDesignWorkshop;
 
   return (
     <div
@@ -55,7 +58,7 @@ export default function Phase1AppScreen(props: { appId: string; onExit: () => vo
           <div
             className={[
               'text-xl font-bold tracking-tight truncate',
-              isCloudArchPuzzle || isSqlDojo
+              isCloudArchPuzzle || isSqlDojo || isApiDesignWorkshop
                 ? 'bg-gradient-to-r from-pink-600 via-rose-600 to-violet-600 bg-clip-text text-transparent'
                 : 'text-gray-900',
             ].join(' ')}
