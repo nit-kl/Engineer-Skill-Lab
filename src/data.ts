@@ -15,10 +15,11 @@ export const appsData: SkillApp[] = [
   {
     id: 'sql-dojo',
     title: 'SQL道場',
-    description: 'テーブルと期待結果から正しいSQLクエリを構築する対戦パズル。',
+    description:
+      'ミニSQLエンジン上で28問のクエリに挑戦。SELECT・JOIN・集計・CASE式まで、テーブルを見ながら正解SQLを書こう。',
     category: 'データベース',
     difficulty: 2,
-    status: 'designing',
+    status: 'available',
     tags: ['SQL', 'RDB', 'チューニング'],
     icon: '🗄️'
   },
