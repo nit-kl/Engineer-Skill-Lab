@@ -398,87 +398,120 @@ const CHALLENGES: Challenge[] = [
     emoji: '📡',
     description:
       '大量のIoTセンサーデータを収集・蓄積・分析するプラットフォーム。ストリーム処理とデータウェアハウスがカギ！（図の「クライアント」ノードはブラウザではなくセンサー／デバイスを表します）',
-    required: ['client', 'gateway', 'stream', 'worker', 'tsdb', 'etl', 'dwh', 'monitor'],
+    required: ['client', 'gateway', 'stream', 'serverless', 'tsdb', 'etl', 'dwh', 'monitor'],
     connections: [
       ['client', 'gateway'],
       ['gateway', 'stream'],
-      ['stream', 'worker'],
-      ['worker', 'tsdb'],
+      ['stream', 'serverless'],
+      ['serverless', 'tsdb'],
       ['tsdb', 'etl'],
       ['etl', 'dwh'],
       ['tsdb', 'monitor'],
     ],
     explanation:
-      'センサー・ゲートウェイ（図上はクライアントノード）からAPI Gateway経由でイベントストリームへ送信。ジョブワーカーがリアルタイム処理して時系列DBに蓄積。ETLパイプラインでDWHに集約し分析。監視サービスが異常値を検知してアラートを発行します。',
+      'デバイス（図のクライアントノード）がAPI Gatewayの取り込みAPIに到達し、イベントストリームへ書き込みます。ストリームをトリガにサーバーレス（FaaS）がリアルタイム処理して時系列DBへ格納し、ETLでDWHへ集約して分析します。監視はTSDBのメトリクスやパイプラインの健全性からアラートを上げます。',
     alternativePatterns: [
       {
-        required: ['client', 'gateway', 'stream', 'worker', 'tsdb', 'etl', 'dwh', 'monitor'],
+        required: ['client', 'gateway', 'stream', 'serverless', 'tsdb', 'etl', 'dwh', 'monitor'],
         connections: [
           ['client', 'gateway'],
           ['gateway', 'stream'],
-          ['stream', 'worker'],
-          ['worker', 'tsdb'],
+          ['stream', 'serverless'],
+          ['serverless', 'tsdb'],
           ['tsdb', 'etl'],
           ['etl', 'dwh'],
-          ['worker', 'monitor'],
+          ['serverless', 'monitor'],
         ],
       },
     ],
   },
   {
     id: 8,
-    title: 'マイクロサービス本番環境',
+    title: 'コンテナとCI/CDの本番構成',
     difficulty: '上級',
     diffColor: '#E57373',
     emoji: '🏗️',
-    description: 'コンテナオーケストレーション・CI/CD・監視まで含む本番運用レベルのマイクロサービス基盤を構築しよう！',
-    required: ['client', 'dns', 'firewall', 'gateway', 'container', 'cicd', 'registry', 'api', 'db', 'queue', 'worker', 'monitor', 'logging'],
+    description:
+      '本番でよく参照される「共有基盤の型」を組み立てます。入口（DNS→WAF→LB→API Gateway）、コンテナ上の複数サービス（外向きHTTPのAPIと内部連携のgRPC）、データ・キャッシュ・非同期、CI/CD→レジストリ→デプロイ、可観測性（監視・ログ・分散トレース）まで含みます。ECやSNSなど各業務は、この土台の上にデプロイされるイメージです。',
+    required: [
+      'client',
+      'dns',
+      'firewall',
+      'lb',
+      'gateway',
+      'container',
+      'api',
+      'grpc',
+      'db',
+      'cache',
+      'queue',
+      'worker',
+      'cicd',
+      'registry',
+      'monitor',
+      'logging',
+      'tracing',
+    ],
     connections: [
       ['client', 'dns'],
       ['dns', 'firewall'],
-      ['firewall', 'gateway'],
+      ['firewall', 'lb'],
+      ['lb', 'gateway'],
       ['gateway', 'container'],
       ['container', 'api'],
+      ['container', 'grpc'],
       ['api', 'db'],
+      ['grpc', 'db'],
+      ['api', 'cache'],
       ['api', 'queue'],
       ['queue', 'worker'],
       ['cicd', 'registry'],
       ['registry', 'container'],
-      ['api', 'monitor'],
-      ['api', 'logging'],
+      ['container', 'monitor'],
+      ['container', 'logging'],
+      ['container', 'tracing'],
     ],
     explanation:
-      '利用者はDNSでエンドポイントを解決してからWAFに到達します。CI/CDがコードをビルドしレジストリに保存、コンテナ基盤へデプロイ。WAF→API Gatewayで安全にルーティングし、コンテナ内のAPIサービスが処理。監視とログ管理で本番運用の可観測性を確保します。',
+      '参照構成として、北側トラフィックはDNS→WAF→ロードバランサー→API Gateway→コンテナ基盤の順。コンテナ上には「外向きのAPIサーバー」と「サービス間のgRPCサービス」の二種類を置き、いずれもRDBへ接続する想定です。APIはキャッシュを挟み、重い処理はメッセージキュー→ジョブワーカーへ。CI/CDはイメージをコンテナレジストリへプッシュし、クラスタが取得してデプロイします。可観測性は「監視・ログ・分散トレース」の三本柱をコンテナ基盤側にまとめた主解答（プラットフォーム提供のエージェント等）と、主要サービスに直接つなぐ別解の両方を認めます。',
     alternativePatterns: [
       {
         required: [
           'client',
           'dns',
           'firewall',
+          'lb',
           'gateway',
           'container',
-          'cicd',
-          'registry',
           'api',
+          'grpc',
           'db',
+          'cache',
           'queue',
           'worker',
+          'cicd',
+          'registry',
           'monitor',
           'logging',
+          'tracing',
         ],
         connections: [
           ['client', 'dns'],
           ['dns', 'firewall'],
-          ['firewall', 'gateway'],
+          ['firewall', 'lb'],
+          ['lb', 'gateway'],
           ['gateway', 'container'],
           ['container', 'api'],
+          ['container', 'grpc'],
           ['api', 'db'],
+          ['grpc', 'db'],
+          ['api', 'cache'],
           ['api', 'queue'],
           ['queue', 'worker'],
           ['cicd', 'registry'],
           ['registry', 'container'],
-          ['container', 'monitor'],
-          ['container', 'logging'],
+          ['api', 'monitor'],
+          ['api', 'logging'],
+          ['grpc', 'tracing'],
         ],
       },
     ],
@@ -486,6 +519,9 @@ const CHALLENGES: Challenge[] = [
 ];
 
 const FLOAT_EMOJIS = ['☁️', '⭐', '💡', '🚀', '✨', '🎈', '💎', '🌸', '🧩', '🔧'];
+
+/** 採点前の解説プレビュー用（同一チャレンジ内では各ランク同じ動画IDのことが多い） */
+const SOLUTION_PREVIEW_RANK: Rank = 'S';
 
 let idCounter = 0;
 const genId = () => `node-${++idCounter}`;
@@ -707,6 +743,21 @@ export default function CloudArchPuzzleApp() {
     }
     return youtube;
   }, [youtube, challenge.id]);
+
+  const solutionPreviewHasVideo = useMemo(() => {
+    if (!youtubeForChallenge) return false;
+    const e = youtubeForChallenge.rankToVideo[SOLUTION_PREVIEW_RANK];
+    return Boolean(e?.videoId);
+  }, [youtubeForChallenge]);
+
+  useEffect(() => {
+    if (!showSolution) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setShowSolution(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [showSolution]);
 
   const resetBoard = useCallback(
     (ch?: Challenge) => {
@@ -1054,6 +1105,7 @@ export default function CloudArchPuzzleApp() {
   const getCenter = (node: PlacedNode) => ({ x: node.x + 54, y: node.y + 36 });
 
   const checkAnswer = () => {
+    setShowSolution(false);
     const { score, missingComps, missingConns } = evaluateChallenge(challenge, nodes, connections);
     setResult({ score, missingComps, missingConns });
     if (score === 100) setCelebrateAnim(true);
@@ -1931,7 +1983,7 @@ export default function CloudArchPuzzleApp() {
                   minWidth: compact ? 0 : undefined,
                 }}
               >
-                💡 {compact ? '解答' : '解答例'}
+                💡 {compact ? '解説' : '解説動画'}
               </button>
               <button
                 className="btn"
@@ -1965,32 +2017,6 @@ export default function CloudArchPuzzleApp() {
               </button>
             </div>
           </div>
-
-          {showSolution && (
-            <div
-              style={{
-                padding: '10px 18px',
-                background: 'rgba(255,243,224,0.85)',
-                borderBottom: '1.5px solid #ffe0b220',
-                fontSize: 14,
-                color: '#bf360c',
-                animation: 'fadeUp 0.2s ease',
-                flexShrink: 0,
-                fontWeight: 500,
-                display: 'flex',
-                alignItems: 'flex-start',
-                gap: 8,
-                maxHeight: 220,
-                overflowY: 'auto',
-                whiteSpace: 'pre-line',
-                lineHeight: 1.55,
-                pointerEvents: 'auto',
-              }}
-            >
-              <span style={{ fontSize: 16, flexShrink: 0, marginTop: 2 }}>💡</span>
-              <span>{formatSolutionExample(challenge)}</span>
-            </div>
-          )}
         </div>
         </div>
       </div>
@@ -2119,6 +2145,136 @@ export default function CloudArchPuzzleApp() {
               : '🔍 ホイールで拡大縮小 · ホイールクリックで移動 · 2指ピンチでも拡大 · ●で接続'}
         </span>
       </div>
+
+      {showSolution &&
+        typeof document !== 'undefined' &&
+        createPortal(
+          <div
+            style={{
+              position: 'fixed',
+              inset: 0,
+              zIndex: 99990,
+              background: 'rgba(252,228,236,0.45)',
+              backdropFilter: 'blur(12px)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: 18,
+              overflow: 'hidden',
+              animation: 'fadeUp 0.2s ease',
+              pointerEvents: 'auto',
+            }}
+            onClick={() => setShowSolution(false)}
+          >
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="solution-video-dialog-title"
+              style={{
+                width: 'min(900px, 96vw)',
+                maxHeight: 'min(90vh, 900px)',
+                background: 'rgba(255,255,255,0.92)',
+                border: '2px solid rgba(244,143,177,0.10)',
+                borderRadius: 24,
+                boxShadow: '0 30px 80px rgba(173,20,87,0.18)',
+                overflow: 'hidden',
+                display: 'flex',
+                flexDirection: 'column',
+                animation: 'pop 0.3s ease',
+                pointerEvents: 'auto',
+              }}
+              onClick={e => e.stopPropagation()}
+            >
+              <div
+                style={{
+                  padding: '16px 16px 12px',
+                  borderBottom: '1.5px solid rgba(244,143,177,0.05)',
+                  flexShrink: 0,
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                  <h2
+                    id="solution-video-dialog-title"
+                    style={{
+                      fontSize: 16,
+                      color: '#880e4f',
+                      fontFamily: "'M PLUS Rounded 1c', sans-serif",
+                      fontWeight: 800,
+                      margin: 0,
+                    }}
+                  >
+                    🎬 解説動画
+                  </h2>
+                  <button
+                    type="button"
+                    onClick={() => setShowSolution(false)}
+                    style={{
+                      background: '#fce4ec',
+                      border: 'none',
+                      color: '#e57373',
+                      cursor: 'pointer',
+                      fontSize: 12,
+                      width: 26,
+                      height: 26,
+                      borderRadius: 9,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontWeight: 700,
+                      flexShrink: 0,
+                    }}
+                    aria-label="閉じる"
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
+              <div
+                style={{
+                  padding: '14px 16px 18px',
+                  flex: 1,
+                  minHeight: 0,
+                  overflowY: 'auto',
+                  color: '#bf360c',
+                  fontSize: 14,
+                  fontWeight: 500,
+                  lineHeight: 1.55,
+                }}
+              >
+                {!youtube ? (
+                  <div style={{ color: '#78909c', fontSize: 13, fontWeight: 600 }}>解説データを読み込み中…</div>
+                ) : (
+                  <>
+                    {youtubeForChallenge ? (
+                      <div style={{ minWidth: 0 }}>
+                        <YoutubeEntryPoint
+                          content={youtubeForChallenge}
+                          rank={SOLUTION_PREVIEW_RANK}
+                          hideTitle
+                        />
+                      </div>
+                    ) : null}
+                    {!solutionPreviewHasVideo ? (
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'flex-start',
+                          gap: 8,
+                          whiteSpace: 'pre-line',
+                          marginTop: 10,
+                        }}
+                      >
+                        <span style={{ fontSize: 16, flexShrink: 0, marginTop: 2 }}>💡</span>
+                        <span>{formatSolutionExample(challenge)}</span>
+                      </div>
+                    ) : null}
+                  </>
+                )}
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
 
       {result &&
         typeof document !== 'undefined' &&
