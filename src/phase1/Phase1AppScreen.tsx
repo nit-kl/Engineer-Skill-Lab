@@ -2,9 +2,13 @@ import type { ComponentType } from 'react';
 import { ChevronLeft } from 'lucide-react';
 import { appsData } from '../data';
 import CloudArchPuzzleApp from '../apps/cloud-arch-puzzle/App';
+import SqlDojoApp from '../apps/sql-dojo/App';
+import APIDesignWorkshopApp from '../apps/api-design-workshop/App';
 
 const APP_COMPONENTS: Record<string, ComponentType> = {
   'cloud-arch-puzzle': CloudArchPuzzleApp,
+  'sql-dojo': SqlDojoApp,
+  'api-design-workshop': APIDesignWorkshopApp,
 };
 
 export default function Phase1AppScreen(props: { appId: string; onExit: () => void }) {
@@ -12,11 +16,14 @@ export default function Phase1AppScreen(props: { appId: string; onExit: () => vo
   const appMeta = appsData.find(a => a.id === appId);
   const Component = APP_COMPONENTS[appId];
   const isCloudArchPuzzle = appId === 'cloud-arch-puzzle';
+  const isSqlDojo = appId === 'sql-dojo';
+  const isApiDesignWorkshop = appId === 'api-design-workshop';
+  const isFullBleed = isCloudArchPuzzle || isSqlDojo || isApiDesignWorkshop;
 
   return (
     <div
       className={
-        isCloudArchPuzzle
+        isFullBleed
           ? 'relative z-10 w-full min-w-0 max-w-none px-0 pt-0 pb-4'
           : 'relative z-10 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8'
       }
@@ -24,7 +31,7 @@ export default function Phase1AppScreen(props: { appId: string; onExit: () => vo
       <div
         className={[
           'flex items-center justify-between gap-4',
-          isCloudArchPuzzle ? 'mb-4 px-4 sm:px-6' : 'mb-6',
+          isFullBleed ? 'mb-4 px-4 sm:px-6' : 'mb-6',
         ].join(' ')}
       >
         <button
@@ -51,7 +58,7 @@ export default function Phase1AppScreen(props: { appId: string; onExit: () => vo
           <div
             className={[
               'text-xl font-bold tracking-tight truncate',
-              isCloudArchPuzzle
+              isCloudArchPuzzle || isSqlDojo || isApiDesignWorkshop
                 ? 'bg-gradient-to-r from-pink-600 via-rose-600 to-violet-600 bg-clip-text text-transparent'
                 : 'text-gray-900',
             ].join(' ')}
@@ -63,13 +70,13 @@ export default function Phase1AppScreen(props: { appId: string; onExit: () => vo
 
       <div
         className={
-          isCloudArchPuzzle
+          isFullBleed
             ? 'w-full min-w-0 bg-transparent border-0 shadow-none rounded-none overflow-visible'
             : 'bg-white/80 backdrop-blur-sm border border-white/50 rounded-3xl shadow-sm overflow-hidden'
         }
       >
         {Component ? (
-          <div className={isCloudArchPuzzle ? 'w-full min-w-0 p-0' : 'p-6 sm:p-8'}>{<Component />}</div>
+          <div className={isFullBleed ? 'w-full min-w-0 p-0' : 'p-6 sm:p-8'}>{<Component />}</div>
         ) : (
           <div className="p-6 sm:p-8">
             <div className="text-lg font-bold text-gray-800 mb-2">対応していないアプリです</div>

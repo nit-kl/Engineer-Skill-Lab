@@ -15,21 +15,23 @@ export const appsData: SkillApp[] = [
   {
     id: 'sql-dojo',
     title: 'SQL道場',
-    description: 'テーブルと期待結果から正しいSQLクエリを構築する対戦パズル。',
+    description:
+      'ミニDB上で28本の「現場が燃えている」シナリオ。障害調査・リスト作成・売上切り分けまで、状況を読んでその場のSQLを書き切ろう。',
     category: 'データベース',
     difficulty: 2,
-    status: 'designing',
+    status: 'available',
     tags: ['SQL', 'RDB', 'チューニング'],
     icon: '🗄️'
   },
   {
     id: 'api-design-workshop',
     title: 'API設計ワークショップ',
-    description: 'REST/GraphQLのエンドポイントを設計し、リクエスト/レスポンスをプレビュー。',
+    description:
+      'HTTPメソッド・ステータスコード・RESTfulなURL・JSONの形など、全30問のクイズでAPI設計の基礎をインタラクティブに学べます。',
     category: 'バックエンド',
     difficulty: 2,
-    status: 'designing',
-    tags: ['API', 'REST', 'GraphQL', '設計'],
+    status: 'available',
+    tags: ['API', 'REST', 'HTTP', '設計'],
     icon: '🔌'
   },
   {
