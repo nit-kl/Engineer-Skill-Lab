@@ -16,7 +16,7 @@ export const appsData: SkillApp[] = [
     id: 'sql-dojo',
     title: 'SQL道場',
     description:
-      'ミニSQLエンジン上で28問のクエリに挑戦。SELECT・JOIN・集計・CASE式まで、テーブルを見ながら正解SQLを書こう。',
+      'ミニDB上で28本の「現場が燃えている」シナリオ。障害調査・リスト作成・売上切り分けまで、状況を読んでその場のSQLを書き切ろう。',
     category: 'データベース',
     difficulty: 2,
     status: 'available',

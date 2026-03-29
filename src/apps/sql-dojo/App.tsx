@@ -280,7 +280,9 @@ export default function SqlDojoApp() {
           <div className="text-base font-bold" style={{ color: dbAccent }}>
             SQL道場
           </div>
-          <div className="text-[9px] text-gray-400">全{CHALLENGES.length}問のSQL特訓</div>
+          <div className="text-[9px] text-gray-400">
+            全{CHALLENGES.length}問・インシデント対応シミュレーション
+          </div>
         </div>
         <div className="flex flex-1 flex-wrap justify-center gap-1">
           <button
@@ -394,7 +396,7 @@ export default function SqlDojoApp() {
               <span className="text-base font-bold text-violet-950">{ch.title}</span>
               <span className="ml-auto text-[10px] text-gray-400">{diffStars(ch.difficulty)}</span>
             </div>
-            <p className="mb-3 rounded-lg border border-pink-100 bg-rose-50/50 px-3 py-2 text-xs leading-relaxed text-gray-700">
+            <p className="mb-3 whitespace-pre-line rounded-lg border border-pink-100 bg-rose-50/50 px-3 py-2 text-xs leading-relaxed text-gray-700">
               {ch.description}
             </p>
             <div className="flex flex-wrap gap-2">
@@ -407,13 +409,15 @@ export default function SqlDojoApp() {
           </section>
 
           <section className="rounded-2xl border border-pink-100/80 bg-white/90 p-4 shadow-md shadow-pink-100/30">
-            <div className="mb-1 text-[11px] font-bold text-violet-950">✏️ SQLを入力</div>
+            <div className="mb-1 text-[11px] font-bold text-violet-950">
+              ✏️ その場で打ち込む対応用SQL
+            </div>
             <textarea
               ref={taRef}
               value={sql}
               onChange={(e) => setSQL(e.target.value)}
               onKeyDown={handleKey}
-              placeholder="SELECT ... FROM ..."
+              placeholder="状況を読み、必要な SELECT ... を書いて実行（Ctrl+Enter）"
               spellCheck={false}
               className="w-full min-h-[80px] resize-y rounded-xl border-2 border-pink-100 bg-rose-50/30 px-3 py-2.5 font-mono text-xs leading-relaxed text-gray-900 outline-none focus:border-pink-400 focus:ring-2 focus:ring-pink-200/50"
             />

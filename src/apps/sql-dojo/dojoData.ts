@@ -142,11 +142,41 @@ export const ALL_DBS: Database = {
 };
 
 export const CHAPTERS = [
-  { id: 'basics', title: '基本操作', emoji: '📗', color: '#43A047', description: 'SELECT / WHERE / ORDER BY をマスター' },
-  { id: 'filtering', title: 'データ抽出', emoji: '🔍', color: '#0078D4', description: 'LIKE / IN / BETWEEN / DISTINCT で絞り込み' },
-  { id: 'aggregation', title: '集計・グループ化', emoji: '📊', color: '#F9A825', description: 'GROUP BY / HAVING / 集計関数' },
-  { id: 'joins', title: 'テーブル結合', emoji: '🔗', color: '#E65100', description: 'JOIN で複数テーブルを結合' },
-  { id: 'advanced', title: '実践クエリ', emoji: '🏆', color: '#D32F2F', description: 'CASE / 算術演算 / 複合クエリ' },
+  {
+    id: 'basics',
+    title: '第一報対応',
+    emoji: '📗',
+    color: '#43A047',
+    description: 'ログインできない・一覧が空白…まず人数と属性を素早く洗い出す',
+  },
+  {
+    id: 'filtering',
+    title: '絞り込み調査',
+    emoji: '🔍',
+    color: '#0078D4',
+    description: 'SKU探索・地域洗い出し・閾値超えの切り分け',
+  },
+  {
+    id: 'aggregation',
+    title: '数で説明する',
+    emoji: '📊',
+    color: '#F9A825',
+    description: '経営・取締役会に「何人・いくら」と答えるには集計が必要',
+  },
+  {
+    id: 'joins',
+    title: '横断ルート調査',
+    emoji: '🔗',
+    color: '#E65100',
+    description: 'どの顧客がどの商品か、誰がどの部署か——テーブルを繋げて因果を見える化',
+  },
+  {
+    id: 'advanced',
+    title: '本番直前の切り分け',
+    emoji: '🏆',
+    color: '#D32F2F',
+    description: 'ランク付け・NULL取りこぼし・レビュー炎上・売上サマリまで一発で',
+  },
 ] as const;
 
 export type ChapterId = (typeof CHAPTERS)[number]['id'];
