@@ -40,7 +40,7 @@ export const appsData: SkillApp[] = [
     description: '意図的に脆弱性が埋め込まれたコードから問題箇所を特定するCTF形式ゲーム。',
     category: 'セキュリティ',
     difficulty: 3,
-    status: 'designing',
+    status: 'available',
     tags: ['セキュリティ', 'OWASP', '脆弱性診断'],
     icon: '🛡️'
   },
