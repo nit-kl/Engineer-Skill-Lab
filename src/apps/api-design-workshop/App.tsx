@@ -1,1141 +1,1115 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import type { HttpMethod } from './workshopData';
 import {
   CHALLENGES,
-  CHAPTERS,
   METHODS,
-  METHOD_COLORS,
-  STATUS_CODES,
-  getRank,
-  type Challenge,
-  type MethodPathChallenge,
-  type MultiChoiceChallenge,
-  type NamingFixChallenge,
-  type StatusCodeChallenge,
+  type EndpointDef,
+  type HttpMethod,
+  type ScenarioChallenge,
 } from './workshopData';
 
-const METHOD_ROW: { m: HttpMethod; desc: string; idem: string; safe: string }[] = [
-  { m: 'GET', desc: 'リソース取得', idem: '冪等', safe: '安全' },
-  { m: 'POST', desc: 'リソース作成', idem: '非冪等', safe: '非安全' },
-  { m: 'PUT', desc: '全体置換', idem: '冪等', safe: '非安全' },
-  { m: 'PATCH', desc: '部分更新', idem: '非冪等', safe: '非安全' },
-  { m: 'DELETE', desc: 'リソース削除', idem: '冪等', safe: '非安全' },
-];
+type UserAnswer = { method: HttpMethod | ''; path: string[]; status: string };
 
-function diffStars(d: number) {
-  return ['', '⭐', '⭐⭐', '⭐⭐⭐'][d] ?? '';
+const STATUS_CODES = [
+  { code: '200', label: '200 OK', desc: '成功' },
+  { code: '201', label: '201 Created', desc: '作成成功' },
+  { code: '204', label: '204 No Content', desc: '成功（本文なし）' },
+  { code: '400', label: '400 Bad Request', desc: 'リクエスト不正' },
+  { code: '404', label: '404 Not Found', desc: '見つからない' },
+] as const;
+
+const METHOD_META: Record<
+  HttpMethod,
+  { color: string; bg: string; desc: string; icon: string }
+> = {
+  GET: { color: '#2563EB', bg: '#DBEAFE', desc: '取得', icon: '📥' },
+  POST: { color: '#059669', bg: '#D1FAE5', desc: '作成', icon: '📤' },
+  PUT: { color: '#D97706', bg: '#FEF3C7', desc: '全更新', icon: '✏️' },
+  PATCH: { color: '#EA580C', bg: '#FFEDD5', desc: '部分更新', icon: '🩹' },
+  DELETE: { color: '#DC2626', bg: '#FEE2E2', desc: '削除', icon: '🗑️' },
+};
+
+const RANK_THRESHOLDS = [
+  { min: 95, rank: 'S', label: 'APIアーキテクト', emoji: '👑', color: '#CA8A04', msg: '設計の一貫性と REST の勘所が抜群です。' },
+  { min: 80, rank: 'A', label: 'APIスペシャリスト', emoji: '⭐', color: '#7C3AED', msg: 'リソース指向の考え方がしっかり身についています。' },
+  { min: 60, rank: 'B', label: 'APIビルダー', emoji: '🔧', color: '#2563EB', msg: 'あと一歩。ヒントと模範解答で復習すると伸びます。' },
+  { min: 40, rank: 'C', label: 'API見習い', emoji: '📘', color: '#64748B', msg: 'GET/POST とパスの階層から慣れていきましょう。' },
+  { min: 0, rank: 'D', label: 'はじめの一歩', emoji: '🌱', color: '#94A3B8', msg: 'メソッドとステータスの対応を表にまとめると早いです。' },
+] as const;
+
+function getRank(score: number) {
+  return RANK_THRESHOLDS.find((r) => score >= r.min) ?? RANK_THRESHOLDS[RANK_THRESHOLDS.length - 1];
 }
 
-function MethodBadge({
-  method,
-  selected,
-  onClick,
-}: {
-  method: HttpMethod;
-  selected: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      style={{
-        padding: '8px 16px',
-        borderRadius: 10,
-        border: `2.5px solid ${selected ? METHOD_COLORS[method] : '#E0E0E0'}`,
-        background: selected ? `${METHOD_COLORS[method]}18` : '#FFF',
-        color: selected ? METHOD_COLORS[method] : '#999',
-        fontWeight: 800,
-        fontSize: 13,
-        cursor: 'pointer',
-        fontFamily: "'Fira Code','SF Mono',monospace",
-        transition: 'all 0.15s',
-        boxShadow: selected ? `0 2px 8px ${METHOD_COLORS[method]}30` : 'none',
-      }}
-    >
-      {method}
-    </button>
+function arraysEqual(a: string[] | undefined, b: string[] | undefined) {
+  if (!a || !b || a.length !== b.length) return false;
+  return a.every((v, i) => v === b[i]);
+}
+
+function scoreEndpoint(userAnswer: UserAnswer, ep: EndpointDef): number {
+  const allAnswers = [ep.answer, ...(ep.altAnswers ?? [])];
+  let best = 0;
+  for (const ans of allAnswers) {
+    let s = 0;
+    if (userAnswer.method === ans.method) s += 40;
+    if (arraysEqual(userAnswer.path, ans.path)) s += 40;
+    else {
+      const uPath = userAnswer.path ?? [];
+      const aPath = ans.path;
+      if (uPath.length > 0) {
+        const match = uPath.filter((seg, i) => aPath[i] === seg).length;
+        s += Math.round((match / Math.max(aPath.length, 1)) * 25);
+      }
+    }
+    if (userAnswer.status === ans.status) s += 20;
+    best = Math.max(best, s);
+  }
+  return best;
+}
+
+function getDisplayAnswer(userAnswer: UserAnswer, ep: EndpointDef) {
+  const allAnswers = [ep.answer, ...(ep.altAnswers ?? [])];
+  let best = ep.answer;
+  let bestScore = -1;
+  for (const ans of allAnswers) {
+    const sc = scoreEndpoint(userAnswer, { ...ep, answer: ans, altAnswers: undefined });
+    if (sc > bestScore) {
+      bestScore = sc;
+      best = ans;
+    }
+  }
+  return best;
+}
+
+function Decorations() {
+  const items = useMemo(
+    () =>
+      ['⚡', '🔗', '📡', '🧩', '💡', '🚀', '✨', '🎯', '{ }', '</>'].map((e, i) => ({
+        emoji: e,
+        left: 5 + ((i * 31) % 88),
+        delay: i * 1.7,
+        dur: 8 + (i % 4) * 2.5,
+        size: 16 + (i % 3) * 5,
+      })),
+    []
   );
-}
-
-function PathOption({
-  path,
-  note,
-  selected,
-  onClick,
-  idx,
-}: {
-  path: string;
-  note?: string;
-  selected: boolean;
-  onClick: () => void;
-  idx: number;
-}) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 10,
-        width: '100%',
-        padding: '10px 14px',
-        borderRadius: 10,
-        textAlign: 'left',
-        border: `2.5px solid ${selected ? '#E65100' : '#E8E8E8'}`,
-        background: selected ? '#FFF3E0' : '#FAFAFA',
-        cursor: 'pointer',
-        fontFamily: "'M PLUS Rounded 1c', sans-serif",
-        transition: 'all 0.15s',
-      }}
-    >
-      <span
-        style={{
-          width: 26,
-          height: 26,
-          borderRadius: '50%',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontSize: 11,
-          fontWeight: 900,
-          flexShrink: 0,
-          background: selected ? '#E65100' : '#DDD',
-          color: '#FFF',
-        }}
-      >
-        {String.fromCharCode(65 + idx)}
-      </span>
-      <div>
+    <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 0, overflow: 'hidden' }} aria-hidden>
+      {items.map((d, i) => (
         <span
+          key={i}
           style={{
-            fontFamily: "'Fira Code','SF Mono',monospace",
-            fontSize: 13,
-            color: selected ? '#BF360C' : '#555',
-            fontWeight: 600,
+            position: 'absolute',
+            left: `${d.left}%`,
+            bottom: '-30px',
+            fontSize: d.size,
+            opacity: 0.12,
+            animation: `apiWsFloatUp ${d.dur}s ease-in-out ${d.delay}s infinite`,
           }}
         >
-          {path}
+          {d.emoji}
         </span>
-        {note ? (
-          <div style={{ fontSize: 10, color: '#999', marginTop: 2 }}>{note}</div>
-        ) : null}
-      </div>
-    </button>
+      ))}
+    </div>
   );
 }
 
-function StatusBadge({
-  code,
+function PathBuilder({
+  segments,
   selected,
-  onClick,
+  onChange,
+  disabled,
+  showHint,
+  hint,
+  onClear,
 }: {
-  code: number;
-  selected: boolean;
-  onClick: () => void;
+  segments: string[];
+  selected: string[];
+  onChange: (p: string[]) => void;
+  disabled: boolean;
+  showHint: boolean;
+  hint: string;
+  onClear: () => void;
 }) {
-  const cat = Math.floor(code / 100);
-  const colors: Record<number, string> = {
-    2: '#43A047',
-    3: '#F9A825',
-    4: '#E65100',
-    5: '#D32F2F',
+  const toggleSegment = (seg: string) => {
+    if (disabled) return;
+    const idx = selected.indexOf(seg);
+    if (idx >= 0 && seg !== '{id}') {
+      onChange(selected.filter((_, i) => i !== idx));
+    } else {
+      onChange([...selected, seg]);
+    }
   };
-  const c = colors[cat] ?? '#888';
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      style={{
-        padding: '10px 16px',
-        borderRadius: 12,
-        border: `2.5px solid ${selected ? c : '#E0E0E0'}`,
-        background: selected ? `${c}15` : '#FFF',
-        color: selected ? c : '#666',
-        fontWeight: 700,
-        fontSize: 13,
-        cursor: 'pointer',
-        fontFamily: "'M PLUS Rounded 1c', sans-serif",
-        display: 'flex',
-        alignItems: 'center',
-        gap: 8,
-        transition: 'all 0.15s',
-        minWidth: 170,
-        boxShadow: selected ? `0 2px 8px ${c}25` : 'none',
-      }}
-    >
-      <span style={{ fontFamily: 'monospace', fontWeight: 900, fontSize: 16 }}>{code}</span>
-      <span style={{ fontSize: 11, opacity: 0.8 }}>{STATUS_CODES[code]}</span>
-    </button>
-  );
-}
 
-function MethodPathChallengeView({
-  challenge,
-  onSubmit,
-}: {
-  challenge: MethodPathChallenge;
-  onSubmit: (a: { method: HttpMethod; pathIdx: number }) => void;
-}) {
-  const [method, setMethod] = useState<HttpMethod | ''>('');
-  const [pathIdx, setPathIdx] = useState<number | null>(null);
-  const canSubmit = Boolean(method) && pathIdx !== null;
+  const removeAt = (idx: number) => {
+    if (disabled) return;
+    onChange(selected.filter((_, i) => i !== idx));
+  };
+
   return (
     <div>
-      <div style={{ fontSize: 12, fontWeight: 700, color: '#5A3D6A', marginBottom: 8 }}>
-        ① HTTPメソッドを選択:
-      </div>
-      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 16 }}>
-        {METHODS.map((m) => (
-          <MethodBadge key={m} method={m} selected={method === m} onClick={() => setMethod(m)} />
-        ))}
-      </div>
-      <div style={{ fontSize: 12, fontWeight: 700, color: '#5A3D6A', marginBottom: 8 }}>② パスを選択:</div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 16 }}>
-        {challenge.pathOptions.map((opt, i) => (
-          <PathOption
-            key={opt.path}
-            path={opt.path}
-            note={opt.note}
-            selected={pathIdx === i}
-            onClick={() => setPathIdx(i)}
-            idx={i}
-          />
-        ))}
-      </div>
-      {canSubmit && method ? (
-        <div
-          style={{
-            background: '#F5F5F5',
-            borderRadius: 10,
-            padding: '10px 14px',
-            marginBottom: 14,
-            border: '1px solid #E0E0E0',
-          }}
-        >
-          <div style={{ fontSize: 10, color: '#999', marginBottom: 4 }}>あなたの回答:</div>
-          <span
-            style={{
-              fontFamily: 'monospace',
-              fontWeight: 800,
-              fontSize: 14,
-              padding: '2px 8px',
-              background: `${METHOD_COLORS[method]}22`,
-              borderRadius: 6,
-              color: METHOD_COLORS[method],
-              marginRight: 8,
-            }}
-          >
-            {method}
-          </span>
-          <span style={{ fontFamily: 'monospace', fontSize: 14, color: '#333' }}>
-            {challenge.pathOptions[pathIdx!]?.path}
-          </span>
-        </div>
-      ) : null}
-      <button
-        type="button"
-        onClick={() => canSubmit && method && onSubmit({ method, pathIdx: pathIdx! })}
-        disabled={!canSubmit}
-        style={{
-          background: canSubmit
-            ? 'linear-gradient(135deg, #E65100, #FF8A65)'
-            : '#E0E0E0',
-          color: '#fff',
-          border: 'none',
-          borderRadius: 12,
-          padding: '10px 24px',
-          fontSize: 13,
-          fontWeight: 700,
-          cursor: canSubmit ? 'pointer' : 'default',
-          fontFamily: "'M PLUS Rounded 1c', sans-serif",
-        }}
-      >
-        ✅ 回答する
-      </button>
-    </div>
-  );
-}
-
-function NamingFixChallengeView({
-  challenge,
-  onSubmit,
-}: {
-  challenge: NamingFixChallenge;
-  onSubmit: (a: { method: HttpMethod; pathIdx: number }) => void;
-}) {
-  const [method, setMethod] = useState<HttpMethod | ''>('');
-  const [pathIdx, setPathIdx] = useState<number | null>(null);
-  const canSubmit = Boolean(method) && pathIdx !== null;
-  return (
-    <div>
-      <div
-        style={{
-          background: '#FFEBEE',
-          borderRadius: 12,
-          padding: '12px 16px',
-          marginBottom: 16,
-          border: '2px solid #EF9A9A',
-        }}
-      >
-        <div style={{ fontSize: 11, fontWeight: 700, color: '#D32F2F', marginBottom: 4 }}>
-          ❌ 修正前（これはNGです）:
-        </div>
-        <div style={{ fontFamily: 'monospace', fontSize: 15, color: '#C62828' }}>
-          <span
-            style={{
-              fontWeight: 800,
-              marginRight: 8,
-              padding: '2px 8px',
-              background: '#D32F2F22',
-              borderRadius: 6,
-            }}
-          >
-            {challenge.badEndpoint.method}
-          </span>
-          {challenge.badEndpoint.path}
-        </div>
-      </div>
-      <div style={{ fontSize: 12, fontWeight: 700, color: '#5A3D6A', marginBottom: 8 }}>
-        ① 正しいHTTPメソッドを選択:
-      </div>
-      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 16 }}>
-        {METHODS.map((m) => (
-          <MethodBadge key={m} method={m} selected={method === m} onClick={() => setMethod(m)} />
-        ))}
-      </div>
-      <div style={{ fontSize: 12, fontWeight: 700, color: '#5A3D6A', marginBottom: 8 }}>② 正しいパスを選択:</div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 16 }}>
-        {challenge.pathOptions.map((opt, i) => (
-          <PathOption
-            key={opt.path}
-            path={opt.path}
-            selected={pathIdx === i}
-            onClick={() => setPathIdx(i)}
-            idx={i}
-          />
-        ))}
-      </div>
-      {canSubmit && method ? (
-        <div
-          style={{
-            background: '#F5F5F5',
-            borderRadius: 10,
-            padding: '10px 14px',
-            marginBottom: 14,
-            border: '1px solid #E0E0E0',
-          }}
-        >
-          <div style={{ fontSize: 10, color: '#999', marginBottom: 4 }}>修正後:</div>
-          <span
-            style={{
-              fontFamily: 'monospace',
-              fontWeight: 800,
-              fontSize: 14,
-              padding: '2px 8px',
-              background: `${METHOD_COLORS[method]}22`,
-              borderRadius: 6,
-              color: METHOD_COLORS[method],
-              marginRight: 8,
-            }}
-          >
-            {method}
-          </span>
-          <span style={{ fontFamily: 'monospace', fontSize: 14, color: '#333' }}>
-            {challenge.pathOptions[pathIdx!]?.path}
-          </span>
-        </div>
-      ) : null}
-      <button
-        type="button"
-        onClick={() => canSubmit && method && onSubmit({ method, pathIdx: pathIdx! })}
-        disabled={!canSubmit}
-        style={{
-          background: canSubmit
-            ? 'linear-gradient(135deg, #F9A825, #FFD54F)'
-            : '#E0E0E0',
-          color: '#fff',
-          border: 'none',
-          borderRadius: 12,
-          padding: '10px 24px',
-          fontSize: 13,
-          fontWeight: 700,
-          cursor: canSubmit ? 'pointer' : 'default',
-          fontFamily: "'M PLUS Rounded 1c', sans-serif",
-        }}
-      >
-        ✅ 回答する
-      </button>
-    </div>
-  );
-}
-
-function StatusCodeChallengeView({
-  challenge,
-  onSubmit,
-}: {
-  challenge: StatusCodeChallenge;
-  onSubmit: (code: number) => void;
-}) {
-  const [selected, setSelected] = useState<number | null>(null);
-  return (
-    <div>
-      <div style={{ fontSize: 12, fontWeight: 700, color: '#5A3D6A', marginBottom: 10 }}>
-        ステータスコードを選択:
-      </div>
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 14 }}>
-        {challenge.options.map((code) => (
-          <StatusBadge
-            key={code}
-            code={code}
-            selected={selected === code}
-            onClick={() => setSelected(code)}
-          />
-        ))}
-      </div>
-      <button
-        type="button"
-        onClick={() => selected !== null && onSubmit(selected)}
-        disabled={selected === null}
-        style={{
-          background:
-            selected !== null ? 'linear-gradient(135deg, #0078D4, #64B5F6)' : '#E0E0E0',
-          color: '#fff',
-          border: 'none',
-          borderRadius: 12,
-          padding: '10px 24px',
-          fontSize: 13,
-          fontWeight: 700,
-          cursor: selected !== null ? 'pointer' : 'default',
-          fontFamily: "'M PLUS Rounded 1c', sans-serif",
-        }}
-      >
-        ✅ 回答する
-      </button>
-    </div>
-  );
-}
-
-function MultiChoiceChallengeView({
-  challenge,
-  onSubmit,
-}: {
-  challenge: MultiChoiceChallenge;
-  onSubmit: (idx: number) => void;
-}) {
-  const [selected, setSelected] = useState<number | null>(null);
-  return (
-    <div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 14 }}>
-        {challenge.options.map((opt, i) => (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 5 }}>
+        <span style={{ fontSize: 11, color: '#9CA3AF', fontWeight: 600 }}>エンドポイントパス（タップで組み立て）</span>
+        {!disabled && selected.length > 0 && (
           <button
             type="button"
-            key={i}
-            onClick={() => setSelected(i)}
+            onClick={onClear}
             style={{
-              padding: '12px 16px',
-              borderRadius: 12,
-              textAlign: 'left',
-              border: `2.5px solid ${selected === i ? '#E65100' : '#E8E8E8'}`,
-              background: selected === i ? '#FFF3E0' : '#FAFAFA',
+              fontSize: 11,
+              fontWeight: 700,
+              color: '#64748B',
+              background: '#F1F5F9',
+              border: '1px solid #E2E8F0',
+              borderRadius: 8,
+              padding: '3px 10px',
               cursor: 'pointer',
-              fontFamily: "'M PLUS Rounded 1c', sans-serif",
-              fontSize: 12,
-              lineHeight: 1.6,
-              transition: 'all 0.15s',
-              color: '#444',
-              boxShadow: selected === i ? '0 2px 8px rgba(230,81,0,0.12)' : 'none',
+              fontFamily: 'inherit',
             }}
           >
-            <span
-              style={{
-                fontWeight: 800,
-                marginRight: 8,
-                color: selected === i ? '#E65100' : '#BBB',
-              }}
-            >
-              {String.fromCharCode(65 + i)}.
-            </span>
-            <span
-              style={{
-                fontFamily:
-                  opt.label.includes('{') || opt.label.includes('/')
-                    ? "'Fira Code','SF Mono',monospace"
-                    : 'inherit',
-                fontSize: opt.label.includes('{') ? 11 : 12,
-              }}
-            >
-              {opt.label}
-            </span>
+            クリア
           </button>
-        ))}
+        )}
       </div>
-      <button
-        type="button"
-        onClick={() => selected !== null && onSubmit(selected)}
-        disabled={selected === null}
+      <div
         style={{
-          background:
-            selected !== null ? 'linear-gradient(135deg, #E65100, #FF8A65)' : '#E0E0E0',
-          color: '#fff',
-          border: 'none',
-          borderRadius: 12,
-          padding: '10px 24px',
-          fontSize: 13,
-          fontWeight: 700,
-          cursor: selected !== null ? 'pointer' : 'default',
-          fontFamily: "'M PLUS Rounded 1c', sans-serif",
+          background: '#0F172A',
+          borderRadius: 10,
+          padding: '8px 14px',
+          fontFamily: "'Fira Code', monospace",
+          fontSize: 14,
+          color: '#7DD3FC',
+          minHeight: 36,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 2,
+          flexWrap: 'wrap',
+          marginBottom: 8,
+          border: '2px solid #334155',
         }}
       >
-        ✅ 回答する
-      </button>
+        <span style={{ color: '#64748B' }}>/</span>
+        {selected.length === 0 && (
+          <span style={{ color: '#475569', fontStyle: 'italic', fontSize: 12 }}>↓ パーツをタップ</span>
+        )}
+        {selected.map((seg, i) => (
+          <span key={`${seg}-${i}`} style={{ display: 'inline-flex', alignItems: 'center' }}>
+            {i > 0 && <span style={{ color: '#64748B' }}>/</span>}
+            <button
+              type="button"
+              onClick={() => removeAt(i)}
+              disabled={disabled}
+              style={{
+                background: seg === '{id}' ? '#6D28D933' : '#2563EB33',
+                color: seg === '{id}' ? '#C4B5FD' : '#93C5FD',
+                border: 'none',
+                borderRadius: 6,
+                padding: '2px 8px',
+                fontFamily: "'Fira Code', monospace",
+                fontSize: 13,
+                cursor: disabled ? 'default' : 'pointer',
+                transition: 'all .15s',
+              }}
+            >
+              {seg}
+              {!disabled && (
+                <span style={{ marginLeft: 4, fontSize: 10, opacity: 0.6 }} aria-hidden>
+                  ✕
+                </span>
+              )}
+            </button>
+          </span>
+        ))}
+      </div>
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+        {segments.map((seg) => {
+          const isUsed = selected.includes(seg) && seg !== '{id}';
+          return (
+            <button
+              type="button"
+              key={seg}
+              onClick={() => toggleSegment(seg)}
+              disabled={disabled}
+              style={{
+                padding: '5px 12px',
+                borderRadius: 18,
+                fontSize: 12,
+                fontWeight: 600,
+                fontFamily: "'Fira Code', monospace",
+                border: `2px solid ${seg === '{id}' ? '#A78BFA' : '#60A5FA'}`,
+                background: isUsed ? '#E0E7FF' : '#fff',
+                color: seg === '{id}' ? '#6D28D9' : '#1D4ED8',
+                cursor: disabled ? 'default' : 'pointer',
+                opacity: disabled ? 0.6 : 1,
+                transition: 'all .15s',
+              }}
+            >
+              {seg === '{id}' ? '{ id }' : seg}
+            </button>
+          );
+        })}
+      </div>
+      {showHint && selected.length === 0 && (
+        <div style={{ fontSize: 11, color: '#D97706', marginTop: 5 }}>💡 {hint}</div>
+      )}
     </div>
   );
 }
 
-function evaluateAnswer(ch: Challenge, answer: unknown): boolean {
-  if (ch.type === 'method_path' || ch.type === 'naming_fix') {
-    const a = answer as { method: HttpMethod; pathIdx: number };
-    return a.method === ch.methodAnswer && ch.pathOptions[a.pathIdx]?.correct === true;
-  }
-  if (ch.type === 'status_code') {
-    return answer === ch.answer;
-  }
-  if (ch.type === 'multi_choice') {
-    const i = answer as number;
-    return ch.options[i]?.correct === true;
-  }
-  return false;
+function EndpointCard({
+  ep,
+  index,
+  value,
+  onChange,
+  submitted,
+  showHints,
+  challenge,
+}: {
+  ep: EndpointDef;
+  index: number;
+  value: UserAnswer;
+  onChange: (v: UserAnswer) => void;
+  submitted: boolean;
+  showHints: boolean;
+  challenge: ScenarioChallenge;
+}) {
+  const score = submitted ? scoreEndpoint(value, ep) : null;
+  const best = ep.answer;
+  const isComplete = Boolean(value.method && value.path.length > 0 && value.status);
+  const clearPath = () => onChange({ ...value, path: [] });
+  const borderColor =
+    submitted && score != null
+      ? score >= 80
+        ? '#16A34A'
+        : score >= 40
+          ? '#D97706'
+          : '#DC2626'
+      : null;
+
+  return (
+    <article
+      style={{
+        background: '#fff',
+        borderRadius: 18,
+        padding: '18px 20px',
+        marginBottom: 14,
+        border: borderColor ? `2.5px solid ${borderColor}` : isComplete ? '2px solid #A78BFA' : '2px solid #E5E7EB',
+        boxShadow: submitted && score != null && score >= 80 ? '0 4px 20px rgba(22,163,74,0.12)' : '0 2px 8px rgba(0,0,0,0.04)',
+        transition: 'all .3s',
+        animation: 'apiWsFadeUp .4s ease both',
+        animationDelay: `${index * 0.06}s`,
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+        <span
+          style={{
+            background: 'linear-gradient(135deg, #6366F1, #DB2777)',
+            color: '#fff',
+            borderRadius: 10,
+            padding: '3px 10px',
+            fontSize: 11,
+            fontWeight: 800,
+            letterSpacing: 0.5,
+          }}
+        >
+          Q{index + 1}
+        </span>
+        <span style={{ fontWeight: 700, fontSize: 14, color: '#1F2937', flex: 1 }}>{ep.description}</span>
+        {!submitted && isComplete && (
+          <span style={{ fontSize: 16 }} aria-hidden>
+            ✅
+          </span>
+        )}
+        {submitted && score !== null && (
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 4,
+              background: score >= 80 ? '#F0FDF4' : score >= 40 ? '#FFFBEB' : '#FEF2F2',
+              padding: '3px 10px',
+              borderRadius: 12,
+            }}
+          >
+            <span style={{ fontSize: 14 }} aria-hidden>
+              {score >= 80 ? '🎉' : score >= 40 ? '🤔' : '😅'}
+            </span>
+            <span
+              style={{
+                fontSize: 13,
+                fontWeight: 800,
+                color: score >= 80 ? '#15803D' : score >= 40 ? '#B45309' : '#B91C1C',
+              }}
+            >
+              {score}pt
+            </span>
+          </div>
+        )}
+      </div>
+
+      <div style={{ marginBottom: 12 }}>
+        <div style={{ fontSize: 11, color: '#9CA3AF', fontWeight: 600, marginBottom: 5 }}>HTTPメソッド</div>
+        <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+          {METHODS.map((m) => {
+            const meta = METHOD_META[m];
+            const active = value.method === m;
+            return (
+              <button
+                type="button"
+                key={m}
+                onClick={() => !submitted && onChange({ ...value, method: m })}
+                disabled={submitted}
+                style={{
+                  padding: '7px 14px',
+                  borderRadius: 22,
+                  border: `2px solid ${active ? meta.color : '#E5E7EB'}`,
+                  background: active ? meta.color : '#fff',
+                  color: active ? '#fff' : '#6B7280',
+                  fontWeight: 700,
+                  fontSize: 12,
+                  cursor: submitted ? 'default' : 'pointer',
+                  transition: 'all .2s',
+                  transform: active ? 'scale(1.06)' : 'scale(1)',
+                  boxShadow: active ? `0 3px 12px ${meta.color}33` : 'none',
+                  fontFamily: "'M PLUS Rounded 1c', sans-serif",
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 4,
+                }}
+              >
+                <span style={{ fontSize: 13 }} aria-hidden>
+                  {meta.icon}
+                </span>
+                {m}
+              </button>
+            );
+          })}
+        </div>
+        {showHints && !value.method && (
+          <div style={{ fontSize: 11, color: '#D97706', marginTop: 4 }}>💡 {ep.hints.method}</div>
+        )}
+      </div>
+
+      <div style={{ marginBottom: 12 }}>
+        <PathBuilder
+          segments={challenge.segments}
+          selected={value.path}
+          onChange={(p) => onChange({ ...value, path: p })}
+          disabled={submitted}
+          showHint={showHints}
+          hint={ep.hints.path}
+          onClear={clearPath}
+        />
+      </div>
+
+      <div>
+        <div style={{ fontSize: 11, color: '#9CA3AF', fontWeight: 600, marginBottom: 5 }}>ステータスコード</div>
+        <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+          {STATUS_CODES.map((sc) => {
+            const active = value.status === sc.code;
+            return (
+              <button
+                type="button"
+                key={sc.code}
+                onClick={() => !submitted && onChange({ ...value, status: sc.code })}
+                disabled={submitted}
+                style={{
+                  padding: '6px 12px',
+                  borderRadius: 16,
+                  border: `2px solid ${active ? '#4F46E5' : '#E5E7EB'}`,
+                  background: active ? '#4F46E5' : '#fff',
+                  color: active ? '#fff' : '#6B7280',
+                  fontWeight: 600,
+                  fontSize: 11,
+                  cursor: submitted ? 'default' : 'pointer',
+                  transition: 'all .2s',
+                  fontFamily: "'M PLUS Rounded 1c', sans-serif",
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                }}
+              >
+                <span style={{ fontWeight: 800 }}>{sc.code}</span>
+                <span style={{ fontSize: 9, opacity: 0.8, marginTop: 1 }}>{sc.desc}</span>
+              </button>
+            );
+          })}
+        </div>
+        {showHints && !value.status && (
+          <div style={{ fontSize: 11, color: '#D97706', marginTop: 4 }}>💡 {ep.hints.status}</div>
+        )}
+      </div>
+
+      {submitted && score !== null && score < 100 && (
+        <div
+          style={{
+            marginTop: 14,
+            padding: '10px 14px',
+            background: '#F0FDF4',
+            borderRadius: 12,
+            border: '1px solid #BBF7D0',
+          }}
+        >
+          <div style={{ fontSize: 11, fontWeight: 700, color: '#15803D', marginBottom: 6 }}>✅ 模範解答（代表例）</div>
+          <div
+            style={{
+              fontFamily: "'Fira Code', monospace",
+              fontSize: 13,
+              color: '#14532D',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              flexWrap: 'wrap',
+            }}
+          >
+            <span
+              style={{
+                background: METHOD_META[best.method].bg,
+                color: METHOD_META[best.method].color,
+                padding: '3px 10px',
+                borderRadius: 8,
+                fontWeight: 800,
+              }}
+            >
+              {best.method}
+            </span>
+            <span>/{best.path.join('/')}</span>
+            <span style={{ color: '#64748B' }}>→ {best.status}</span>
+          </div>
+          {(ep.altAnswers?.length ?? 0) > 0 && (
+            <div style={{ fontSize: 10, color: '#64748B', marginTop: 6, lineHeight: 1.5 }}>
+              別解として {ep.altAnswers!.length} パターンも採点対象に含めています。
+            </div>
+          )}
+        </div>
+      )}
+    </article>
+  );
 }
 
-export default function APIDesignWorkshopApp() {
-  const [idx, setIdx] = useState(0);
-  const [scores, setScores] = useState<Record<number, number>>({});
-  const [feedback, setFeedback] = useState<{ correct: boolean; explanation: string } | null>(null);
-  const [attempts, setAttempts] = useState(0);
-  const [activeCh, setActiveCh] = useState<string | null>(null);
-  const [sideOpen, setSideOpen] = useState(
-    typeof window !== 'undefined' ? window.innerWidth > 800 : true,
+function Confetti({ active }: { active: boolean }) {
+  const particles = useMemo(
+    () =>
+      Array.from({ length: 30 }, (_, i) => ({
+        x: 50 + (Math.random() - 0.5) * 60,
+        delay: Math.random() * 0.4,
+        dur: 1.2 + Math.random() * 0.8,
+        color: ['#CA8A04', '#DB2777', '#7C3AED', '#2563EB', '#059669', '#DC2626'][i % 6],
+        size: 4 + Math.random() * 6,
+      })),
+    []
   );
-  const [showComplete, setShowComplete] = useState(false);
-  const [formKey, setFormKey] = useState(0);
+  if (!active) return null;
+  return (
+    <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 100, overflow: 'hidden' }} aria-hidden>
+      {particles.map((p, i) => (
+        <div
+          key={i}
+          style={{
+            position: 'absolute',
+            left: `${p.x}%`,
+            top: '40%',
+            width: p.size,
+            height: p.size,
+            borderRadius: p.size > 7 ? 2 : '50%',
+            background: p.color,
+            animation: `apiWsConfettiFall ${p.dur}s ease-out ${p.delay}s forwards`,
+          }}
+        />
+      ))}
+    </div>
+  );
+}
 
-  const ch = CHALLENGES[idx];
-  const chap = CHAPTERS.find((c) => c.id === ch.chapter);
-  const totalScore = useMemo(() => {
-    const s = Object.values(scores);
-    return s.length ? Math.round(s.reduce((a, b) => a + b, 0) / CHALLENGES.length) : 0;
-  }, [scores]);
-  const cleared = Object.keys(scores).length;
-  const filtered = activeCh ? CHALLENGES.filter((c) => c.chapter === activeCh) : CHALLENGES;
+type Screen = 'menu' | 'play' | 'result';
+
+export default function ApiDesignWorkshopApp() {
+  const [screen, setScreen] = useState<Screen>('menu');
+  const [challengeIdx, setChallengeIdx] = useState(0);
+  const [answers, setAnswers] = useState<Record<number, UserAnswer>>({});
+  const [submitted, setSubmitted] = useState(false);
+  const [showHints, setShowHints] = useState(false);
+  const [completedScores, setCompletedScores] = useState<Record<number, number>>({});
+  const [totalScore, setTotalScore] = useState<number | null>(null);
+  const [animate, setAnimate] = useState(false);
+  const [showConfetti, setShowConfetti] = useState(false);
 
   useEffect(() => {
-    setFeedback(null);
-    setAttempts(0);
-    setFormKey((k) => k + 1);
-  }, [idx]);
+    setAnimate(true);
+  }, [screen]);
 
-  const handleSubmit = useCallback(
-    (answer: unknown) => {
-      const correct = evaluateAnswer(ch, answer);
-      setAttempts((a) => a + 1);
-      setFeedback({ correct, explanation: ch.explanation });
-      if (correct) {
-        const sc = Math.max(100 - Math.min(attempts * 25, 50), 30);
-        setScores((prev) => {
-          const next = { ...prev, [ch.id]: Math.max(prev[ch.id] ?? 0, sc) };
-          if (Object.keys(next).length === CHALLENGES.length) {
-            setTimeout(() => setShowComplete(true), 1500);
-          }
-          return next;
-        });
-      }
-    },
-    [ch, attempts],
-  );
+  const challenge = CHALLENGES[challengeIdx];
 
-  const correctPath = 'pathOptions' in ch ? ch.pathOptions.find((p) => p.correct) : undefined;
+  const initAnswers = useCallback((ch: ScenarioChallenge) => {
+    const a: Record<number, UserAnswer> = {};
+    ch.endpoints.forEach((_, i) => {
+      a[i] = { method: '', path: [], status: '' };
+    });
+    return a;
+  }, []);
 
-  if (showComplete) {
-    const ri = getRank(totalScore);
+  const startChallenge = (idx: number) => {
+    setChallengeIdx(idx);
+    setAnswers(initAnswers(CHALLENGES[idx]));
+    setSubmitted(false);
+    setShowHints(false);
+    setTotalScore(null);
+    setShowConfetti(false);
+    setAnimate(false);
+    setTimeout(() => {
+      setScreen('play');
+      setAnimate(true);
+    }, 50);
+  };
+
+  const handleSubmit = () => {
+    let total = 0;
+    challenge.endpoints.forEach((ep, i) => {
+      total += scoreEndpoint(answers[i] ?? { method: '', path: [], status: '' }, ep);
+    });
+    const avg = Math.round(total / challenge.endpoints.length);
+    setTotalScore(avg);
+    setSubmitted(true);
+    setCompletedScores((prev) => ({
+      ...prev,
+      [challenge.id]: Math.max(prev[challenge.id] ?? 0, avg),
+    }));
+    if (avg >= 80) {
+      setShowConfetti(true);
+      setTimeout(() => setShowConfetti(false), 2500);
+    }
+  };
+
+  const goResult = () => {
+    setAnimate(false);
+    setTimeout(() => {
+      setScreen('result');
+      setAnimate(true);
+    }, 50);
+  };
+
+  const goMenu = () => {
+    setAnimate(false);
+    setTimeout(() => {
+      setScreen('menu');
+      setAnimate(true);
+    }, 50);
+  };
+
+  const allAnswered = challenge.endpoints.every((_, i) => {
+    const a = answers[i];
+    return a?.method && a.path.length > 0 && a.status;
+  });
+  const answeredCount = challenge.endpoints.filter((_, i) => {
+    const a = answers[i];
+    return a?.method && a.path.length > 0 && a.status;
+  }).length;
+  const rank = totalScore !== null ? getRank(totalScore) : null;
+
+  if (screen === 'menu') {
+    const totalBest = Object.values(completedScores);
+    const overallAvg =
+      totalBest.length > 0 ? Math.round(totalBest.reduce((x, y) => x + y, 0) / totalBest.length) : null;
+
     return (
-      <div
-        style={{
-          minHeight: '70vh',
-          background:
-            'linear-gradient(135deg, #FFE0F0 0%, #E0F0FF 30%, #FFFDE0 60%, #E0FFE8 100%)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontFamily: "'M PLUS Rounded 1c', sans-serif",
-        }}
-      >
+      <div style={S.root} className="api-design-workshop-root">
+        <Decorations />
         <link
           href="https://fonts.googleapis.com/css2?family=Hachi+Maru+Pop&family=M+PLUS+Rounded+1c:wght@400;700;900&family=Fira+Code:wght@400;700&display=swap"
           rel="stylesheet"
         />
+        <style>{globalCSS}</style>
         <div
           style={{
-            background: 'rgba(255,255,255,0.95)',
-            borderRadius: 24,
-            padding: '44px 36px',
-            maxWidth: 540,
-            textAlign: 'center',
-            boxShadow: '0 20px 60px rgba(230,81,0,0.15)',
+            ...S.container,
+            opacity: animate ? 1 : 0,
+            transform: animate ? 'translateY(0)' : 'translateY(20px)',
+            transition: 'all .5s ease',
           }}
         >
-          <div style={{ fontSize: 56, marginBottom: 12 }}>{ri.emoji}</div>
-          <div style={{ fontFamily: "'Hachi Maru Pop', cursive", fontSize: 26, color: '#5A3D6A', marginBottom: 8 }}>
-            全{CHALLENGES.length}問クリア！
-          </div>
-          <div
-            style={{
-              fontSize: 68,
-              fontWeight: 900,
-              background: `linear-gradient(135deg, ${ri.color}, #E65100)`,
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              marginBottom: 6,
-            }}
-          >
-            {ri.rank}ランク
-          </div>
-          <div style={{ fontSize: 15, color: '#888', marginBottom: 20 }}>総合スコア: {totalScore}点</div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, justifyContent: 'center', marginBottom: 20 }}>
-            {CHALLENGES.map((c) => {
-              const s = scores[c.id] ?? 0;
-              const r = getRank(s);
+          <header style={{ textAlign: 'center', marginBottom: 24 }}>
+            <div style={{ fontSize: 48, marginBottom: 4, animation: 'apiWsPopIn .6s ease' }} aria-hidden>
+              ⚙️
+            </div>
+            <h1 style={S.title}>API設計ワークショップ</h1>
+            <p style={S.subtitle}>シナリオに沿って REST らしいエンドポイントを組み立てよう</p>
+          </header>
+
+          {totalBest.length > 0 && (
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'center',
+                gap: 20,
+                marginBottom: 20,
+                background: '#fff',
+                borderRadius: 14,
+                padding: '10px 20px',
+                boxShadow: '0 2px 10px rgba(0,0,0,0.06)',
+              }}
+            >
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: 22, fontWeight: 900, color: '#6366F1' }}>
+                  {totalBest.length}/{CHALLENGES.length}
+                </div>
+                <div style={{ fontSize: 10, color: '#9CA3AF', fontWeight: 600 }}>クリア</div>
+              </div>
+              <div style={{ width: 1, background: '#E5E7EB' }} />
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: 22, fontWeight: 900, color: '#CA8A04' }}>{overallAvg}pt</div>
+                <div style={{ fontSize: 10, color: '#9CA3AF', fontWeight: 600 }}>平均スコア</div>
+              </div>
+              <div style={{ width: 1, background: '#E5E7EB' }} />
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: 22 }}>{overallAvg != null ? getRank(overallAvg).emoji : '—'}</div>
+                <div style={{ fontSize: 10, color: '#9CA3AF', fontWeight: 600 }}>ランク</div>
+              </div>
+            </div>
+          )}
+
+          <section style={S.howTo}>
+            <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 6, color: '#5B21B6' }}>🎯 遊び方</div>
+            <div style={{ fontSize: 13, lineHeight: 1.9, color: '#4B5563' }}>
+              ① シナリオを読んで「何のリソースか」を決める
+              <br />
+              ② <strong>HTTPメソッド</strong> → <strong>パス</strong> → <strong>ステータス</strong> の順に選ぶ
+              <br />③ 全問埋めたら提出。結果画面で復習ポイントを確認
+            </div>
+          </section>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {CHALLENGES.map((ch, i) => {
+              const bestScore = completedScores[ch.id];
+              const bestRank = bestScore != null ? getRank(bestScore) : null;
+              const diffColor = ch.difficulty === 1 ? '#2563EB' : ch.difficulty === 2 ? '#D97706' : '#DC2626';
               return (
-                <div
-                  key={c.id}
+                <button
+                  type="button"
+                  key={ch.id}
+                  onClick={() => startChallenge(i)}
                   style={{
-                    background: r.bg,
-                    borderRadius: 8,
-                    padding: '3px 8px',
-                    fontSize: 10,
-                    color: r.color,
-                    fontWeight: 700,
+                    ...S.challengeCard,
+                    animationDelay: `${i * 0.07}s`,
+                    borderLeft: `5px solid ${bestRank ? bestRank.color : diffColor}`,
                   }}
                 >
-                  Q{c.id}:{r.rank}
-                </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <span style={{ fontSize: 28 }} aria-hidden>
+                      {ch.icon}
+                    </span>
+                    <div style={{ flex: 1, textAlign: 'left' }}>
+                      <div style={{ fontWeight: 700, fontSize: 15, color: '#1F2937', marginBottom: 2 }}>{ch.title}</div>
+                      <div style={{ fontSize: 11, color: '#9CA3AF', display: 'flex', gap: 8, alignItems: 'center' }}>
+                        <span>{ch.endpoints.length} 問</span>
+                        <span style={{ color: diffColor, fontWeight: 700 }}>
+                          {'★'.repeat(ch.difficulty)}
+                          {'☆'.repeat(3 - ch.difficulty)}
+                        </span>
+                      </div>
+                    </div>
+                    {bestRank ? (
+                      <div style={{ textAlign: 'center' }}>
+                        <div style={{ fontSize: 20 }} aria-hidden>
+                          {bestRank.emoji}
+                        </div>
+                        <div style={{ fontSize: 11, fontWeight: 800, color: bestRank.color }}>{bestScore}pt</div>
+                      </div>
+                    ) : (
+                      <span style={{ fontSize: 22, color: '#D1D5DB' }} aria-hidden>
+                        →
+                      </span>
+                    )}
+                  </div>
+                </button>
               );
             })}
           </div>
-          <button
-            type="button"
-            onClick={() => {
-              setShowComplete(false);
-              setIdx(0);
-              setScores({});
-              setActiveCh(null);
-            }}
-            style={{
-              background: 'linear-gradient(135deg, #E65100, #FF8A65)',
-              color: '#fff',
-              border: 'none',
-              borderRadius: 14,
-              padding: '12px 28px',
-              fontSize: 15,
-              fontWeight: 700,
-              cursor: 'pointer',
-              fontFamily: "'M PLUS Rounded 1c', sans-serif",
-            }}
-          >
-            🔄 もう一度挑戦
-          </button>
         </div>
       </div>
     );
   }
 
-  return (
-    <div
-      style={{
-        minHeight: '70vh',
-        background: 'linear-gradient(135deg, #FFE0F0 0%, #E0F0FF 30%, #FFFDE0 60%, #E0FFE8 100%)',
-        fontFamily: "'M PLUS Rounded 1c', sans-serif",
-      }}
-    >
-      <link
-        href="https://fonts.googleapis.com/css2?family=Hachi+Maru+Pop&family=M+PLUS+Rounded+1c:wght@400;700;900&family=Fira+Code:wght@400;700&display=swap"
-        rel="stylesheet"
-      />
-      <div
-        style={{
-          background: 'rgba(255,255,255,0.88)',
-          backdropFilter: 'blur(12px)',
-          borderBottom: '3px solid #FFCC80',
-          padding: '8px 14px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 10,
-          position: 'sticky',
-          top: 0,
-          zIndex: 50,
-          flexWrap: 'wrap',
-        }}
-      >
-        <div style={{ fontSize: 24 }}>⚙️</div>
-        <div style={{ minWidth: 80 }}>
-          <div style={{ fontFamily: "'Hachi Maru Pop', cursive", fontSize: 15, color: '#E65100', lineHeight: 1.2 }}>
-            API設計ワークショップ
-          </div>
-          <div style={{ fontSize: 9, color: '#999' }}>RESTful API の設計力を鍛えよう！</div>
-        </div>
-        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', flex: 1, justifyContent: 'center' }}>
-          <button
-            type="button"
-            onClick={() => setActiveCh(null)}
-            style={{
-              padding: '3px 10px',
-              borderRadius: 12,
-              fontSize: 10,
-              fontWeight: 700,
-              cursor: 'pointer',
-              border: `2px solid ${!activeCh ? '#E65100' : '#E0E0E0'}`,
-              background: !activeCh ? '#FFF3E0' : '#FFF',
-              color: !activeCh ? '#E65100' : '#888',
-              fontFamily: "'M PLUS Rounded 1c', sans-serif",
-            }}
-          >
-            全て
-          </button>
-          {CHAPTERS.map((c) => {
-            const active = activeCh === c.id;
-            const done = CHALLENGES.filter((x) => x.chapter === c.id).filter((x) => scores[x.id]).length;
-            const tot = CHALLENGES.filter((x) => x.chapter === c.id).length;
-            return (
+  if (screen === 'play') {
+    const progress = answeredCount / challenge.endpoints.length;
+    return (
+      <div style={S.root} className="api-design-workshop-root">
+        <Decorations />
+        <Confetti active={showConfetti} />
+        <link
+          href="https://fonts.googleapis.com/css2?family=Hachi+Maru+Pop&family=M+PLUS+Rounded+1c:wght@400;700;900&family=Fira+Code:wght@400;700&display=swap"
+          rel="stylesheet"
+        />
+        <style>{globalCSS}</style>
+        <div
+          style={{
+            ...S.container,
+            maxWidth: 640,
+            opacity: animate ? 1 : 0,
+            transform: animate ? 'translateY(0)' : 'translateY(20px)',
+            transition: 'all .5s ease',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+            <button type="button" onClick={goMenu} style={S.backBtn}>
+              ← 戻る
+            </button>
+            <div style={{ flex: 1 }}>
+              <h2 style={{ margin: 0, fontSize: 17, color: '#1F2937', fontFamily: "'Hachi Maru Pop', cursive" }}>
+                {challenge.icon} {challenge.title}
+              </h2>
+            </div>
+            {!submitted && (
               <button
                 type="button"
-                key={c.id}
-                onClick={() => setActiveCh(c.id)}
+                onClick={() => setShowHints((h) => !h)}
                 style={{
-                  padding: '3px 10px',
-                  borderRadius: 12,
-                  fontSize: 10,
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                  border: `2px solid ${active ? c.color : '#E0E0E0'}`,
-                  background: active ? `${c.color}18` : '#FFF',
-                  color: active ? c.color : '#888',
-                  fontFamily: "'M PLUS Rounded 1c', sans-serif",
-                  whiteSpace: 'nowrap',
+                  ...S.hintBtn,
+                  background: showHints ? '#FEF3C7' : '#fff',
+                  borderColor: showHints ? '#D97706' : '#E5E7EB',
                 }}
               >
-                {c.emoji} {c.title}{' '}
-                <span style={{ fontSize: 9, opacity: 0.7 }}>
-                  {done}/{tot}
-                </span>
+                💡 {showHints ? 'ON' : 'ヒント'}
               </button>
-            );
-          })}
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <div style={{ fontSize: 10, color: '#888' }}>
-            {cleared}/{CHALLENGES.length}
+            )}
           </div>
-          <div
-            style={{
-              background: 'linear-gradient(135deg, #E65100, #FF8A65)',
-              color: '#fff',
-              borderRadius: 16,
-              padding: '2px 10px',
-              fontSize: 11,
-              fontWeight: 700,
-            }}
-          >
-            {totalScore}点
+
+          <div style={{ background: '#E5E7EB', borderRadius: 6, height: 8, marginBottom: 14, overflow: 'hidden' }}>
+            <div
+              style={{
+                height: '100%',
+                borderRadius: 6,
+                background: submitted
+                  ? (totalScore ?? 0) >= 80
+                    ? 'linear-gradient(90deg,#16A34A,#15803D)'
+                    : (totalScore ?? 0) >= 40
+                      ? 'linear-gradient(90deg,#FBBF24,#D97706)'
+                      : 'linear-gradient(90deg,#F87171,#DC2626)'
+                  : 'linear-gradient(90deg, #6366F1, #DB2777)',
+                width: submitted ? '100%' : `${progress * 100}%`,
+                transition: 'width .4s ease',
+              }}
+            />
           </div>
+          <div style={{ fontSize: 11, color: '#9CA3AF', textAlign: 'right', marginBottom: 8, marginTop: -8 }}>
+            {submitted ? `スコア: ${totalScore}pt` : `${answeredCount} / ${challenge.endpoints.length} 完了`}
+          </div>
+
+          <section style={S.scenario}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: '#5B21B6', marginBottom: 4 }}>📋 シナリオ</div>
+            <div style={{ fontSize: 13.5, color: '#374151', lineHeight: 1.8 }}>{challenge.scenario}</div>
+          </section>
+
+          {challenge.endpoints.map((ep, i) => (
+            <EndpointCard
+              key={i}
+              ep={ep}
+              index={i}
+              value={answers[i] ?? { method: '', path: [], status: '' }}
+              onChange={(v) => setAnswers((prev) => ({ ...prev, [i]: v }))}
+              submitted={submitted}
+              showHints={showHints}
+              challenge={challenge}
+            />
+          ))}
+
+          <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
+            {!submitted ? (
+              <button
+                type="button"
+                onClick={handleSubmit}
+                disabled={!allAnswered}
+                style={{
+                  ...S.primaryBtn,
+                  opacity: allAnswered ? 1 : 0.5,
+                  cursor: allAnswered ? 'pointer' : 'not-allowed',
+                }}
+              >
+                🚀 提出する（{answeredCount}/{challenge.endpoints.length}）
+              </button>
+            ) : (
+              <>
+                <button type="button" onClick={goResult} style={S.primaryBtn}>
+                  📊 結果を見る
+                </button>
+                <button type="button" onClick={goMenu} style={S.secondaryBtn}>
+                  🏠 メニュー
+                </button>
+              </>
+            )}
+          </div>
+
+          {submitted && rank && (
+            <div
+              style={{
+                textAlign: 'center',
+                marginTop: 16,
+                padding: '12px',
+                background: `${rank.color}11`,
+                borderRadius: 14,
+                border: `2px solid ${rank.color}44`,
+                animation: 'apiWsPopIn .5s ease',
+              }}
+            >
+              <span style={{ fontSize: 32 }} aria-hidden>
+                {rank.emoji}
+              </span>
+              <div style={{ fontSize: 20, fontWeight: 900, color: rank.color }}>
+                {rank.rank}ランク — {totalScore}pt
+              </div>
+              <div style={{ fontSize: 13, color: '#64748B', marginTop: 4 }}>{rank.msg}</div>
+            </div>
+          )}
         </div>
       </div>
+    );
+  }
 
-      <div style={{ display: 'flex', maxWidth: 1100, margin: '0 auto', padding: '10px 8px', gap: 10 }}>
-        <div style={{ width: sideOpen ? 190 : 36, flexShrink: 0, transition: 'width 0.2s' }}>
-          <button
-            type="button"
-            onClick={() => setSideOpen(!sideOpen)}
-            style={{
-              width: '100%',
-              background: 'rgba(255,255,255,0.9)',
-              border: 'none',
-              borderRadius: 10,
-              padding: 4,
-              cursor: 'pointer',
-              marginBottom: 6,
-              fontSize: 12,
-              color: '#999',
-            }}
-          >
-            {sideOpen ? '◀' : '▶'}
-          </button>
-          {sideOpen ? (
-            <div
-              style={{
-                background: 'rgba(255,255,255,0.9)',
-                borderRadius: 14,
-                padding: 8,
-                boxShadow: '0 4px 16px rgba(230,81,0,0.08)',
-                maxHeight: 'calc(100vh - 110px)',
-                overflowY: 'auto',
-              }}
-            >
-              {filtered.map((c) => {
-                const s = scores[c.id];
-                const r = s ? getRank(s) : null;
-                const active = CHALLENGES.indexOf(c) === idx;
-                const cp = CHAPTERS.find((x) => x.id === c.chapter);
-                return (
-                  <button
-                    type="button"
-                    key={c.id}
-                    onClick={() => setIdx(CHALLENGES.indexOf(c))}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 5,
-                      width: '100%',
-                      padding: '6px 6px',
-                      marginBottom: 2,
-                      background: active ? 'linear-gradient(135deg, #FFF3E0, #E0F0FF)' : 'transparent',
-                      border: active ? '2px solid #E65100' : '2px solid transparent',
-                      borderRadius: 8,
-                      cursor: 'pointer',
-                      textAlign: 'left',
-                      fontFamily: "'M PLUS Rounded 1c', sans-serif",
-                      fontSize: 10,
-                    }}
-                  >
-                    <div
-                      style={{
-                        width: 22,
-                        height: 22,
-                        borderRadius: '50%',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontSize: 9,
-                        fontWeight: 900,
-                        flexShrink: 0,
-                        background: r
-                          ? `linear-gradient(135deg, ${r.color}, #FF8A65)`
-                          : active
-                            ? cp?.color ?? '#E65100'
-                            : '#E0E0E0',
-                        color: '#fff',
-                      }}
-                    >
-                      {r ? r.rank : c.id}
-                    </div>
-                    <div style={{ overflow: 'hidden', minWidth: 0 }}>
-                      <div
-                        style={{
-                          fontWeight: 700,
-                          color: '#5A3D6A',
-                          fontSize: 10,
-                          whiteSpace: 'nowrap',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                        }}
-                      >
-                        {c.title}
-                      </div>
-                      <div style={{ fontSize: 8, color: '#BBB' }}>{diffStars(c.difficulty)}</div>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          ) : null}
-        </div>
+  if (screen === 'result' && totalScore !== null) {
+    const r = getRank(totalScore);
+    return (
+      <div style={S.root} className="api-design-workshop-root">
+        <Decorations />
+        <Confetti active={showConfetti} />
+        <link
+          href="https://fonts.googleapis.com/css2?family=Hachi+Maru+Pop&family=M+PLUS+Rounded+1c:wght@400;700;900&family=Fira+Code:wght@400;700&display=swap"
+          rel="stylesheet"
+        />
+        <style>{globalCSS}</style>
+        <div
+          style={{
+            ...S.container,
+            textAlign: 'center',
+            opacity: animate ? 1 : 0,
+            transform: animate ? 'translateY(0)' : 'translateY(20px)',
+            transition: 'all .5s ease',
+          }}
+        >
+          <div style={{ fontSize: 64, marginBottom: 6, animation: 'apiWsPopIn .6s ease' }} aria-hidden>
+            {r.emoji}
+          </div>
+          <h1 style={{ ...S.title, fontSize: 30, marginBottom: 2 }}>{r.rank}ランク</h1>
+          <p style={{ fontSize: 15, color: '#64748B', margin: '0 0 4px' }}>{r.label}</p>
+          <p style={{ fontSize: 13, color: '#9CA3AF', margin: '0 0 20px' }}>
+            {challenge.icon} {challenge.title}
+          </p>
 
-        <div style={{ flex: 1, minWidth: 0 }}>
           <div
             style={{
-              background: 'rgba(255,255,255,0.92)',
-              borderRadius: 16,
-              padding: '16px 20px',
-              marginBottom: 10,
-              boxShadow: '0 4px 16px rgba(230,81,0,0.06)',
-              borderTop: `4px solid ${chap?.color ?? '#E65100'}`,
+              width: 150,
+              height: 150,
+              borderRadius: '50%',
+              border: `7px solid ${r.color}`,
+              margin: '0 auto 8px',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: `${r.color}11`,
+              boxShadow: `0 0 40px ${r.color}22`,
+              animation: 'apiWsPopIn .6s ease .2s both',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, flexWrap: 'wrap' }}>
-              <span
-                style={{
-                  background: `linear-gradient(135deg, ${chap?.color ?? '#E65100'}, #FF8A65)`,
-                  color: '#fff',
-                  borderRadius: 14,
-                  padding: '2px 9px',
-                  fontSize: 10,
-                  fontWeight: 700,
-                }}
-              >
-                {chap?.emoji} Q{ch.id}
-              </span>
-              <span style={{ fontFamily: "'Hachi Maru Pop', cursive", fontSize: 15, color: '#5A3D6A' }}>
-                {ch.title}
-              </span>
-              <span style={{ fontSize: 10, marginLeft: 'auto', color: '#AAA' }}>
-                {diffStars(ch.difficulty)}
-              </span>
-            </div>
-            <div
-              style={{
-                fontSize: 13,
-                color: '#555',
-                lineHeight: 1.7,
-                marginBottom: 8,
-                background: '#FFF8F5',
-                borderRadius: 10,
-                padding: '10px 14px',
-                border: '1px solid #FFE0CC',
-              }}
-            >
-              {ch.description}
-            </div>
-            {ch.context ? (
-              <div style={{ fontSize: 11, color: '#888', lineHeight: 1.6, padding: '0 4px' }}>
-                💡 {ch.context}
-              </div>
-            ) : null}
+            <div style={{ fontSize: 44, fontWeight: 900, color: r.color, lineHeight: 1 }}>{totalScore}</div>
+            <div style={{ fontSize: 13, color: '#9CA3AF', fontWeight: 600 }}>/ 100</div>
           </div>
+          <p style={{ fontSize: 14, color: '#64748B', marginBottom: 20 }}>{r.msg}</p>
 
-          {!feedback ? (
-            <div
-              style={{
-                background: 'rgba(255,255,255,0.92)',
-                borderRadius: 16,
-                padding: '16px 20px',
-                marginBottom: 10,
-                boxShadow: '0 4px 16px rgba(230,81,0,0.06)',
-              }}
-              key={formKey}
-            >
-              <div style={{ fontSize: 12, fontWeight: 700, color: '#5A3D6A', marginBottom: 10 }}>✏️ あなたの回答</div>
-              {ch.type === 'method_path' ? (
-                <MethodPathChallengeView challenge={ch} onSubmit={handleSubmit} />
-              ) : null}
-              {ch.type === 'status_code' ? (
-                <StatusCodeChallengeView challenge={ch} onSubmit={handleSubmit} />
-              ) : null}
-              {ch.type === 'naming_fix' ? (
-                <NamingFixChallengeView challenge={ch} onSubmit={handleSubmit} />
-              ) : null}
-              {ch.type === 'multi_choice' ? (
-                <MultiChoiceChallengeView challenge={ch} onSubmit={handleSubmit} />
-              ) : null}
+          <div style={{ textAlign: 'left', marginBottom: 20 }}>
+            <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 10, color: '#4B5563' }}>
+              📝 エンドポイント別スコア
             </div>
-          ) : null}
-
-          {feedback ? (
-            <div
-              style={{
-                background: 'rgba(255,255,255,0.92)',
-                borderRadius: 16,
-                padding: '16px 20px',
-                marginBottom: 10,
-                boxShadow: '0 4px 16px rgba(230,81,0,0.06)',
-                borderTop: `4px solid ${feedback.correct ? '#81C784' : '#EF9A9A'}`,
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-                <span style={{ fontSize: 24 }}>{feedback.correct ? '🎉' : '🤔'}</span>
-                <span
-                  style={{
-                    fontSize: 16,
-                    fontWeight: 700,
-                    color: feedback.correct ? '#43A047' : '#E53935',
-                    fontFamily: "'Hachi Maru Pop', cursive",
-                  }}
-                >
-                  {feedback.correct ? '正解！' : '不正解…'}
-                </span>
-                {feedback.correct && scores[ch.id] ? (
-                  <span
-                    style={{
-                      marginLeft: 'auto',
-                      background: `linear-gradient(135deg, ${getRank(scores[ch.id]).color}, #FF8A65)`,
-                      color: '#fff',
-                      borderRadius: 14,
-                      padding: '2px 10px',
-                      fontSize: 12,
-                      fontWeight: 900,
-                    }}
-                  >
-                    {getRank(scores[ch.id]).rank} ({scores[ch.id]}点)
-                  </span>
-                ) : null}
-              </div>
-              {ch.type === 'method_path' || ch.type === 'naming_fix' ? (
+            {challenge.endpoints.map((ep, i) => {
+              const row = answers[i] ?? { method: '', path: [], status: '' };
+              const sc = scoreEndpoint(row, ep);
+              const display = getDisplayAnswer(row, ep);
+              return (
                 <div
+                  key={i}
                   style={{
-                    background: '#E8F5E9',
-                    borderRadius: 10,
+                    background: '#F8FAFC',
+                    borderRadius: 12,
                     padding: '10px 14px',
-                    marginBottom: 12,
-                    border: '1px solid #A5D6A7',
+                    marginBottom: 8,
+                    border: '1px solid #E2E8F0',
                   }}
                 >
-                  <div style={{ fontSize: 11, fontWeight: 700, color: '#2E7D32', marginBottom: 4 }}>✅ 正解:</div>
-                  <div style={{ fontFamily: 'monospace', fontSize: 15, color: '#1B5E20' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                    <span style={{ fontSize: 14 }} aria-hidden>
+                      {sc >= 80 ? '🎉' : sc >= 40 ? '🤔' : '😅'}
+                    </span>
+                    <span style={{ flex: 1, fontSize: 13, color: '#374151', fontWeight: 600 }}>{ep.description}</span>
                     <span
                       style={{
                         fontWeight: 800,
-                        marginRight: 8,
-                        padding: '3px 10px',
-                        background: `${METHOD_COLORS[ch.methodAnswer]}22`,
-                        borderRadius: 6,
-                        color: METHOD_COLORS[ch.methodAnswer],
+                        fontSize: 14,
+                        color: sc >= 80 ? '#15803D' : sc >= 40 ? '#B45309' : '#B91C1C',
                       }}
                     >
-                      {ch.methodAnswer}
+                      {sc}pt
                     </span>
-                    {correctPath?.path}
                   </div>
-                  {correctPath?.note ? (
-                    <div style={{ fontSize: 10, color: '#388E3C', marginTop: 4 }}>{correctPath.note}</div>
-                  ) : null}
-                </div>
-              ) : null}
-              {ch.type === 'status_code' ? (
-                <div
-                  style={{
-                    background: '#E8F5E9',
-                    borderRadius: 10,
-                    padding: '10px 14px',
-                    marginBottom: 12,
-                    border: '1px solid #A5D6A7',
-                  }}
-                >
-                  <div style={{ fontSize: 11, fontWeight: 700, color: '#2E7D32', marginBottom: 4 }}>✅ 正解:</div>
-                  <div style={{ fontFamily: 'monospace', fontSize: 16, color: '#1B5E20', fontWeight: 800 }}>
-                    {ch.answer} {STATUS_CODES[ch.answer]}
+                  <div style={{ height: 5, borderRadius: 3, background: '#E2E8F0', overflow: 'hidden' }}>
+                    <div
+                      style={{
+                        width: `${sc}%`,
+                        height: '100%',
+                        borderRadius: 3,
+                        background: sc >= 80 ? '#16A34A' : sc >= 40 ? '#FBBF24' : '#EF4444',
+                        transition: 'width .8s ease',
+                      }}
+                    />
                   </div>
-                </div>
-              ) : null}
-              {ch.type === 'multi_choice' ? (
-                <div
-                  style={{
-                    background: '#E8F5E9',
-                    borderRadius: 10,
-                    padding: '10px 14px',
-                    marginBottom: 12,
-                    border: '1px solid #A5D6A7',
-                  }}
-                >
-                  <div style={{ fontSize: 11, fontWeight: 700, color: '#2E7D32', marginBottom: 4 }}>✅ 正解:</div>
-                  <div style={{ fontSize: 12, color: '#1B5E20' }}>
-                    {ch.options.find((o) => o.correct)?.label}
+                  <div style={{ marginTop: 6, fontFamily: "'Fira Code', monospace", fontSize: 11, color: '#64748B' }}>
+                    あなた:{' '}
+                    <span style={{ color: row.method === display.method ? '#15803D' : '#B91C1C' }}>
+                      {row.method || '—'}
+                    </span>{' '}
+                    <span style={{ color: arraysEqual(row.path, display.path) ? '#15803D' : '#B91C1C' }}>
+                      /{row.path.join('/') || '—'}
+                    </span>
+                    {' → '}
+                    <span style={{ color: row.status === display.status ? '#15803D' : '#B91C1C' }}>
+                      {row.status || '—'}
+                    </span>
                   </div>
+                  {sc < 100 && (
+                    <div style={{ marginTop: 3, fontFamily: "'Fira Code', monospace", fontSize: 11, color: '#15803D' }}>
+                      参考: {display.method} /{display.path.join('/')} → {display.status}
+                    </div>
+                  )}
                 </div>
-              ) : null}
-              <div
-                style={{
-                  background: '#F3E5F5',
-                  borderRadius: 10,
-                  padding: '10px 14px',
-                  border: '1px solid #CE93D8',
-                }}
-              >
-                <div style={{ fontSize: 11, fontWeight: 700, color: '#6A1B9A', marginBottom: 4 }}>📚 解説:</div>
-                <div style={{ fontSize: 12, color: '#4A148C', lineHeight: 1.7 }}>{feedback.explanation}</div>
-              </div>
-              <div style={{ display: 'flex', gap: 8, marginTop: 14, flexWrap: 'wrap' }}>
-                {!feedback.correct ? (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setFeedback(null);
-                      setFormKey((k) => k + 1);
-                    }}
-                    style={{
-                      background: 'linear-gradient(135deg, #F9A825, #FFD54F)',
-                      color: '#fff',
-                      border: 'none',
-                      borderRadius: 12,
-                      padding: '9px 20px',
-                      fontSize: 13,
-                      fontWeight: 700,
-                      cursor: 'pointer',
-                      fontFamily: "'M PLUS Rounded 1c', sans-serif",
-                    }}
-                  >
-                    🔄 もう一度
-                  </button>
-                ) : null}
-                {idx < CHALLENGES.length - 1 ? (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const ni = activeCh
-                        ? CHALLENGES.findIndex((c, i) => i > idx && c.chapter === activeCh)
-                        : idx + 1;
-                      setIdx(ni >= 0 ? ni : idx + 1);
-                    }}
-                    style={{
-                      background: 'linear-gradient(135deg, #81C784, #66BB6A)',
-                      color: '#fff',
-                      border: 'none',
-                      borderRadius: 12,
-                      padding: '9px 20px',
-                      fontSize: 13,
-                      fontWeight: 700,
-                      cursor: 'pointer',
-                      fontFamily: "'M PLUS Rounded 1c', sans-serif",
-                    }}
-                  >
-                    次の問題へ ➡️
-                  </button>
-                ) : null}
-              </div>
-            </div>
-          ) : null}
+              );
+            })}
+          </div>
 
-          <div
-            style={{
-              background: 'rgba(255,255,255,0.85)',
-              borderRadius: 14,
-              padding: '14px 18px',
-              boxShadow: '0 2px 10px rgba(230,81,0,0.04)',
-            }}
-          >
-            <div style={{ fontSize: 11, fontWeight: 700, color: '#E65100', marginBottom: 8 }}>
-              📖 HTTPメソッド早見表
+          <section style={S.howTo}>
+            <div style={{ fontWeight: 700, fontSize: 13, color: '#5B21B6', marginBottom: 6 }}>📚 REST 設計のコツ</div>
+            <div style={{ fontSize: 12, color: '#4B5563', lineHeight: 1.9, textAlign: 'left' }}>
+              • リソースは<strong>名詞の複数形</strong>（/notes /shipments）で表す
+              <br />
+              • <strong>GET</strong> 取得、<strong>POST</strong> 新規、<strong>PUT/PATCH</strong> 更新、<strong>DELETE</strong>{' '}
+              削除
+              <br />
+              • 子リソースはパスで階層化（/videos/{'{id}'}/comments）
+              <br />• 作成は <strong>201</strong>、本文なし削除は <strong>204</strong>、その他の成功は多くが{' '}
+              <strong>200</strong>
             </div>
-            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-              {METHOD_ROW.map((x) => (
-                <div
-                  key={x.m}
-                  style={{
-                    background: `${METHOD_COLORS[x.m]}10`,
-                    border: `1px solid ${METHOD_COLORS[x.m]}30`,
-                    borderRadius: 10,
-                    padding: '6px 10px',
-                    minWidth: 95,
-                  }}
-                >
-                  <div
-                    style={{
-                      fontFamily: 'monospace',
-                      fontWeight: 800,
-                      fontSize: 12,
-                      color: METHOD_COLORS[x.m],
-                    }}
-                  >
-                    {x.m}
-                  </div>
-                  <div style={{ fontSize: 10, color: '#666' }}>{x.desc}</div>
-                  <div style={{ fontSize: 9, color: '#999' }}>
-                    {x.idem} / {x.safe}
-                  </div>
-                </div>
-              ))}
-            </div>
+          </section>
+
+          <div style={{ display: 'flex', gap: 10, justifyContent: 'center', marginTop: 16, flexWrap: 'wrap' }}>
+            <button type="button" onClick={() => startChallenge(challengeIdx)} style={S.secondaryBtn}>
+              🔄 もう一度
+            </button>
+            {challengeIdx < CHALLENGES.length - 1 && (
+              <button type="button" onClick={() => startChallenge(challengeIdx + 1)} style={S.primaryBtn}>
+                ▶ 次のシナリオ
+              </button>
+            )}
+            <button type="button" onClick={goMenu} style={S.secondaryBtn}>
+              🏠 メニュー
+            </button>
           </div>
         </div>
       </div>
-    </div>
-  );
+    );
+  }
+
+  return null;
 }
+
+const S = {
+  root: {
+    minHeight: '100vh',
+    background: 'linear-gradient(145deg, #FDF4FF 0%, #EEF2FF 35%, #ECFEFF 70%, #F0FDF4 100%)',
+    fontFamily: "'M PLUS Rounded 1c', sans-serif",
+    position: 'relative' as const,
+    padding: '16px 12px 40px',
+  },
+  container: { maxWidth: 580, margin: '0 auto', position: 'relative' as const, zIndex: 1 },
+  title: { fontFamily: "'Hachi Maru Pop', cursive", fontSize: 24, color: '#1F2937', margin: '0 0 4px' },
+  subtitle: { fontSize: 14, color: '#64748B', margin: 0 },
+  howTo: {
+    background: '#F5F3FF',
+    borderRadius: 14,
+    padding: '14px 18px',
+    marginBottom: 18,
+    border: '1px solid #DDD6FE',
+  },
+  scenario: {
+    background: '#EDE9FE',
+    borderRadius: 14,
+    padding: '14px 18px',
+    marginBottom: 14,
+    border: '1px solid #C4B5FD',
+  },
+  challengeCard: {
+    background: '#fff',
+    borderRadius: 16,
+    padding: '14px 18px',
+    border: 'none',
+    cursor: 'pointer',
+    width: '100%',
+    boxShadow: '0 2px 10px rgba(0,0,0,0.05)',
+    transition: 'all .2s',
+    fontFamily: "'M PLUS Rounded 1c', sans-serif",
+    animation: 'apiWsFadeUp .5s ease both',
+  },
+  primaryBtn: {
+    flex: 1,
+    padding: '13px 20px',
+    borderRadius: 16,
+    border: 'none',
+    background: 'linear-gradient(135deg, #6366F1, #DB2777)',
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: 700,
+    cursor: 'pointer',
+    fontFamily: "'M PLUS Rounded 1c', sans-serif",
+    boxShadow: '0 4px 16px rgba(99,102,241,0.28)',
+    transition: 'transform .15s',
+  },
+  secondaryBtn: {
+    flex: 1,
+    padding: '13px 20px',
+    borderRadius: 16,
+    border: '2px solid #C4B5FD',
+    background: '#fff',
+    color: '#5B21B6',
+    fontSize: 15,
+    fontWeight: 700,
+    cursor: 'pointer',
+    fontFamily: "'M PLUS Rounded 1c', sans-serif",
+    transition: 'transform .15s',
+  },
+  backBtn: {
+    padding: '6px 14px',
+    borderRadius: 10,
+    border: '2px solid #E5E7EB',
+    background: '#fff',
+    color: '#64748B',
+    fontSize: 13,
+    fontWeight: 600,
+    cursor: 'pointer',
+    fontFamily: "'M PLUS Rounded 1c', sans-serif",
+  },
+  hintBtn: {
+    padding: '6px 14px',
+    borderRadius: 10,
+    border: '2px solid #E5E7EB',
+    background: '#fff',
+    color: '#B45309',
+    fontSize: 12,
+    fontWeight: 600,
+    cursor: 'pointer',
+    fontFamily: "'M PLUS Rounded 1c', sans-serif",
+    transition: 'all .2s',
+  },
+};
+
+const globalCSS = `
+  @keyframes apiWsFloatUp { 0% { transform: translateY(0) rotate(0deg); opacity: 0.12; } 50% { opacity: 0.2; } 100% { transform: translateY(-100vh) rotate(360deg); opacity: 0; } }
+  @keyframes apiWsFadeUp { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes apiWsPopIn { 0% { transform: scale(0); } 70% { transform: scale(1.12); } 100% { transform: scale(1); } }
+  @keyframes apiWsConfettiFall { 0% { transform: translateY(0) rotate(0deg) scale(1); opacity: 1; } 100% { transform: translateY(60vh) rotate(720deg) scale(0); opacity: 0; } }
+  .api-design-workshop-root button:hover:not(:disabled) { transform: translateY(-1px) !important; }
+  .api-design-workshop-root button:active:not(:disabled) { transform: scale(0.97) !important; }
+  .api-design-workshop-root button:disabled { cursor: not-allowed; }
+`;
