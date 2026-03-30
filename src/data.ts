@@ -47,11 +47,11 @@ export const appsData: SkillApp[] = [
   {
     id: 'network-topology-builder',
     title: 'ネットワークトポロジービルダー',
-    description: 'サブネット・ルーター・ファイアウォールを配置してセキュアなネットワークを設計。',
+    description: 'ドラッグ＆ドロップでネットワーク機器を配置し、ケーブル接続して課題トポロジーを完成させよう。',
     category: 'ネットワーク',
     difficulty: 3,
-    status: 'designing',
-    tags: ['ネットワーク', 'TCP/IP', 'インフラ設計'],
+    status: 'available',
+    tags: ['ネットワーク', 'TCP/IP', 'トポロジー設計'],
     icon: '🌐'
   },
   {
