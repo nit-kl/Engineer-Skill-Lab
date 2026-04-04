@@ -60,7 +60,7 @@ export const appsData: SkillApp[] = [
     description: 'Pod, Service, Deploymentをビジュアルに配置してクラスタを構築・運用シミュレーション。',
     category: 'クラウド',
     difficulty: 3,
-    status: 'designing',
+    status: 'available',
     tags: ['Kubernetes', 'コンテナオーケストレーション'],
     icon: '☸️'
   },

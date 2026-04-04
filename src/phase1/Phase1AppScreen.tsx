@@ -6,6 +6,7 @@ import SqlDojoApp from '../apps/sql-dojo/App';
 import APIDesignWorkshopApp from '../apps/api-design-workshop/App';
 import SecurityVulnHunterApp from '../apps/security-vuln-hunter/App';
 import NetworkTopologyBuilderApp from '../apps/network-topology-builder/App';
+import K8sOrchestratorApp from '../apps/k8s-orchestrator/App';
 
 const APP_COMPONENTS: Record<string, ComponentType> = {
   'cloud-arch-puzzle': CloudArchPuzzleApp,
@@ -13,6 +14,7 @@ const APP_COMPONENTS: Record<string, ComponentType> = {
   'api-design-workshop': APIDesignWorkshopApp,
   'security-vuln-hunter': SecurityVulnHunterApp,
   'network-topology-builder': NetworkTopologyBuilderApp,
+  'k8s-orchestrator': K8sOrchestratorApp,
 };
 
 export default function Phase1AppScreen(props: { appId: string; onExit: () => void }) {
@@ -24,12 +26,14 @@ export default function Phase1AppScreen(props: { appId: string; onExit: () => vo
   const isApiDesignWorkshop = appId === 'api-design-workshop';
   const isSecurityVulnHunter = appId === 'security-vuln-hunter';
   const isNetworkTopologyBuilder = appId === 'network-topology-builder';
+  const isK8sOrchestrator = appId === 'k8s-orchestrator';
   const isFullBleed =
     isCloudArchPuzzle ||
     isSqlDojo ||
     isApiDesignWorkshop ||
     isSecurityVulnHunter ||
-    isNetworkTopologyBuilder;
+    isNetworkTopologyBuilder ||
+    isK8sOrchestrator;
 
   return (
     <div
@@ -73,7 +77,8 @@ export default function Phase1AppScreen(props: { appId: string; onExit: () => vo
               isSqlDojo ||
               isApiDesignWorkshop ||
               isSecurityVulnHunter ||
-              isNetworkTopologyBuilder
+              isNetworkTopologyBuilder ||
+              isK8sOrchestrator
                 ? 'bg-gradient-to-r from-pink-600 via-rose-600 to-violet-600 bg-clip-text text-transparent'
                 : 'text-gray-900',
             ].join(' ')}
