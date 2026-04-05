@@ -460,7 +460,7 @@ export const CHALLENGES: Challenge[] = [
     tables: ['employees', 'assignments'],
     hint: 'JOIN + GROUP BY + COUNT + ORDER BY',
     answer:
-      'SELECT e.name, COUNT(*) AS project_count FROM employees e JOIN assignments a ON e.id = a.employee_id GROUP BY e.name ORDER BY project_count DESC',
+      'SELECT e.name, COUNT(*) AS project_count FROM employees e JOIN assignments a ON e.id = a.employee_id GROUP BY e.name ORDER BY COUNT(*) DESC',
     validate: (r) => {
       const g: Record<string, number> = {};
       DB_COMPANY.assignments.forEach((a) => {
