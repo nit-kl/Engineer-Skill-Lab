@@ -40,18 +40,18 @@ export const appsData: SkillApp[] = [
     description: '意図的に脆弱性が埋め込まれたコードから問題箇所を特定するCTF形式ゲーム。',
     category: 'セキュリティ',
     difficulty: 3,
-    status: 'designing',
+    status: 'available',
     tags: ['セキュリティ', 'OWASP', '脆弱性診断'],
     icon: '🛡️'
   },
   {
     id: 'network-topology-builder',
     title: 'ネットワークトポロジービルダー',
-    description: 'サブネット・ルーター・ファイアウォールを配置してセキュアなネットワークを設計。',
+    description: 'ドラッグ＆ドロップでネットワーク機器を配置し、ケーブル接続して課題トポロジーを完成させよう。',
     category: 'ネットワーク',
     difficulty: 3,
-    status: 'designing',
-    tags: ['ネットワーク', 'TCP/IP', 'インフラ設計'],
+    status: 'available',
+    tags: ['ネットワーク', 'TCP/IP', 'トポロジー設計'],
     icon: '🌐'
   },
   {
@@ -60,7 +60,7 @@ export const appsData: SkillApp[] = [
     description: 'Pod, Service, Deploymentをビジュアルに配置してクラスタを構築・運用シミュレーション。',
     category: 'クラウド',
     difficulty: 3,
-    status: 'designing',
+    status: 'available',
     tags: ['Kubernetes', 'コンテナオーケストレーション'],
     icon: '☸️'
   },

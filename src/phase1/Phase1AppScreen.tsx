@@ -4,11 +4,17 @@ import { appsData } from '../data';
 import CloudArchPuzzleApp from '../apps/cloud-arch-puzzle/App';
 import SqlDojoApp from '../apps/sql-dojo/App';
 import APIDesignWorkshopApp from '../apps/api-design-workshop/App';
+import SecurityVulnHunterApp from '../apps/security-vuln-hunter/App';
+import NetworkTopologyBuilderApp from '../apps/network-topology-builder/App';
+import K8sOrchestratorApp from '../apps/k8s-orchestrator/App';
 
 const APP_COMPONENTS: Record<string, ComponentType> = {
   'cloud-arch-puzzle': CloudArchPuzzleApp,
   'sql-dojo': SqlDojoApp,
   'api-design-workshop': APIDesignWorkshopApp,
+  'security-vuln-hunter': SecurityVulnHunterApp,
+  'network-topology-builder': NetworkTopologyBuilderApp,
+  'k8s-orchestrator': K8sOrchestratorApp,
 };
 
 export default function Phase1AppScreen(props: { appId: string; onExit: () => void }) {
@@ -18,7 +24,16 @@ export default function Phase1AppScreen(props: { appId: string; onExit: () => vo
   const isCloudArchPuzzle = appId === 'cloud-arch-puzzle';
   const isSqlDojo = appId === 'sql-dojo';
   const isApiDesignWorkshop = appId === 'api-design-workshop';
-  const isFullBleed = isCloudArchPuzzle || isSqlDojo || isApiDesignWorkshop;
+  const isSecurityVulnHunter = appId === 'security-vuln-hunter';
+  const isNetworkTopologyBuilder = appId === 'network-topology-builder';
+  const isK8sOrchestrator = appId === 'k8s-orchestrator';
+  const isFullBleed =
+    isCloudArchPuzzle ||
+    isSqlDojo ||
+    isApiDesignWorkshop ||
+    isSecurityVulnHunter ||
+    isNetworkTopologyBuilder ||
+    isK8sOrchestrator;
 
   return (
     <div
@@ -58,7 +73,12 @@ export default function Phase1AppScreen(props: { appId: string; onExit: () => vo
           <div
             className={[
               'text-xl font-bold tracking-tight truncate',
-              isCloudArchPuzzle || isSqlDojo || isApiDesignWorkshop
+              isCloudArchPuzzle ||
+              isSqlDojo ||
+              isApiDesignWorkshop ||
+              isSecurityVulnHunter ||
+              isNetworkTopologyBuilder ||
+              isK8sOrchestrator
                 ? 'bg-gradient-to-r from-pink-600 via-rose-600 to-violet-600 bg-clip-text text-transparent'
                 : 'text-gray-900',
             ].join(' ')}
