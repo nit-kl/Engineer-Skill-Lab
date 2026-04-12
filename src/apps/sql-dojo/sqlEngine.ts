@@ -846,21 +846,8 @@ export function executeSQL(sql: string, db: Database): Row[] {
     }
     if (q.having) rows = rows.filter((rCell) => !!evalExpr(q.having, rCell));
   }
-  if (q.orderBy.length > 0) {
-    rows.sort((a, b) => {
-      for (const o of q.orderBy) {
-        const va = evalExpr(o.expr, a);
-        const vb = evalExpr(o.expr, b);
-        if (va === vb) continue;
-        if (va === null) return 1;
-        if (vb === null) return -1;
-        const cmp = typeof va === 'string' ? va.localeCompare(String(vb)) : Number(va) - Number(vb);
-        if (cmp !== 0) return o.dir === 'DESC' ? -cmp : cmp;
-      }
-      return 0;
-    });
-  }
-  let res: Row[] = rows.map((rCell) => {
+  /** 投影後の行と、ORDER BY 用（SELECT エイリアス・集約スロットを両方見られる）のマージ行 */
+  const projected = rows.map((rCell) => {
     const o: Row = {};
     for (const c of q.columns) {
       const expr = c.expr as Expr;
@@ -878,8 +865,24 @@ export function executeSQL(sql: string, db: Database): Row[] {
         o[nm] = evalExpr(expr, rCell) as CellValue;
       }
     }
-    return o;
+    const merged: Row = { ...rCell, ...o };
+    return { out: o, merged };
   });
+  if (q.orderBy.length > 0) {
+    projected.sort((a, b) => {
+      for (const o of q.orderBy) {
+        const va = evalExpr(o.expr, a.merged);
+        const vb = evalExpr(o.expr, b.merged);
+        if (va === vb) continue;
+        if (va === null) return 1;
+        if (vb === null) return -1;
+        const cmp = typeof va === 'string' ? va.localeCompare(String(vb)) : Number(va) - Number(vb);
+        if (cmp !== 0) return o.dir === 'DESC' ? -cmp : cmp;
+      }
+      return 0;
+    });
+  }
+  let res: Row[] = projected.map((p) => p.out);
   if (q.distinct) {
     const seen = new Set<string>();
     const u: Row[] = [];
