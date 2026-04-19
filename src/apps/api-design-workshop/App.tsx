@@ -1,13 +1,44 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  AUTH_LEVELS,
+  BODY_PRESENCE,
   CHALLENGES,
+  HEADER_PARTS,
   METHODS,
+  sortHeaderParts,
+  type AuthLevel,
+  type BodyPresence,
+  type EndpointAnswer,
   type EndpointDef,
+  type HeaderPart,
   type HttpMethod,
   type ScenarioChallenge,
 } from './workshopData';
 
-type UserAnswer = { method: HttpMethod | ''; path: string[]; status: string };
+type UserAnswer = {
+  method: HttpMethod | '';
+  path: string[];
+  status: string;
+  auth: AuthLevel | '';
+  requestBody: BodyPresence | '';
+  responseBody: BodyPresence | '';
+  headers: HeaderPart[];
+};
+
+const EMPTY_USER_ANSWER: UserAnswer = {
+  method: '',
+  path: [],
+  status: '',
+  auth: '',
+  requestBody: '',
+  responseBody: '',
+  headers: [],
+};
+
+function arraysEqual(a: string[] | undefined, b: string[] | undefined) {
+  if (!a || !b || a.length !== b.length) return false;
+  return a.every((v, i) => v === b[i]);
+}
 
 const STATUS_CODES = [
   { code: '200', label: '200 OK', desc: '成功' },
@@ -16,6 +47,168 @@ const STATUS_CODES = [
   { code: '400', label: '400 Bad Request', desc: 'リクエスト不正' },
   { code: '404', label: '404 Not Found', desc: '見つからない' },
 ] as const;
+
+const AUTH_LABEL: Record<AuthLevel, string> = {
+  public: '認証不要（公開）',
+  bearer: '要認証（Bearer 等）',
+};
+
+const BODY_LABEL: Record<BodyPresence, string> = {
+  none: 'なし',
+  json: 'JSON',
+};
+
+const HEADER_BTN: Record<HeaderPart, { title: string; sub: string }> = {
+  accept: { title: 'Accept', sub: '望む表現（例: application/json）' },
+  contentType: { title: 'Content-Type', sub: '送るボディの形式（例: application/json）' },
+  authorization: { title: 'Authorization', sub: 'トークン等（例: Bearer …）' },
+};
+
+function toggleHeader(parts: HeaderPart[], part: HeaderPart): HeaderPart[] {
+  const next = new Set(parts);
+  if (next.has(part)) next.delete(part);
+  else next.add(part);
+  return sortHeaderParts([...next]);
+}
+
+function formatHeaderSummary(parts: HeaderPart[]): string {
+  if (parts.length === 0) return '—';
+  return sortHeaderParts([...parts])
+    .map((p) => HEADER_BTN[p].title)
+    .join('、');
+}
+
+function headersEqual(a: HeaderPart[], b: HeaderPart[]): boolean {
+  return sortHeaderParts([...a]).join(',') === sortHeaderParts([...b]).join(',');
+}
+
+const DIFF_STY = {
+  legend: { fontSize: 10, color: '#64748B', lineHeight: 1.5, marginBottom: 8 } as const,
+  tableHead: {
+    display: 'grid',
+    gridTemplateColumns: 'minmax(72px, 88px) 1fr 1fr',
+    gap: 8,
+    marginBottom: 6,
+    paddingBottom: 6,
+    borderBottom: '1px solid #E2E8F0',
+    fontSize: 10,
+    fontWeight: 700,
+    color: '#94A3B8',
+    textTransform: 'uppercase' as const,
+    letterSpacing: 0.3,
+  },
+  row: { display: 'grid', gridTemplateColumns: 'minmax(72px, 88px) 1fr 1fr', gap: 8, alignItems: 'start' as const },
+  label: { color: '#64748B', fontWeight: 700, fontSize: 11, paddingTop: 6 },
+  userCell: (match: boolean) => ({
+    padding: '7px 9px',
+    borderRadius: 8,
+    border: `2px solid ${match ? '#86EFAC' : '#FCA5A5'}`,
+    background: match ? '#F0FDF4' : '#FEF2F2',
+    fontFamily: "'Fira Code', monospace",
+    fontSize: 11,
+    color: match ? '#166534' : '#991B1B',
+    wordBreak: 'break-all' as const,
+    minHeight: 32,
+    boxSizing: 'border-box' as const,
+  }),
+  modelCell: {
+    padding: '7px 9px',
+    borderRadius: 8,
+    border: '2px solid #A7F3D0',
+    background: '#ECFDF5',
+    fontFamily: "'Fira Code', monospace",
+    fontSize: 11,
+    color: '#14532D',
+    wordBreak: 'break-all' as const,
+    minHeight: 32,
+    boxSizing: 'border-box' as const,
+  },
+};
+
+function AnswerComparisonBlock({
+  user,
+  model,
+  compact,
+  showLegend,
+}: {
+  user: UserAnswer;
+  model: EndpointAnswer;
+  compact?: boolean;
+  showLegend?: boolean;
+}) {
+  const uMethod = user.method || '—';
+  const uPath = user.path.length > 0 ? `/${user.path.join('/')}` : '—';
+  const uStatus = user.status || '—';
+  const uAuth = user.auth ? AUTH_LABEL[user.auth] : '—';
+  const uHdr = formatHeaderSummary(user.headers);
+  const uReq = user.requestBody ? BODY_LABEL[user.requestBody] : '—';
+  const uRes = user.responseBody ? BODY_LABEL[user.responseBody] : '—';
+
+  const rows: { key: string; label: string; u: string; m: string; match: boolean }[] = [
+    { key: 'm', label: 'メソッド', u: uMethod, m: model.method, match: user.method === model.method },
+    {
+      key: 'p',
+      label: 'パス',
+      u: uPath,
+      m: `/${model.path.join('/')}`,
+      match: arraysEqual(user.path, model.path),
+    },
+    { key: 's', label: 'ステータス', u: uStatus, m: model.status, match: user.status === model.status },
+    { key: 'a', label: '認証', u: uAuth, m: AUTH_LABEL[model.auth], match: user.auth === model.auth },
+    {
+      key: 'h',
+      label: 'ヘッダー',
+      u: uHdr,
+      m: formatHeaderSummary(model.headers),
+      match: headersEqual(user.headers, model.headers),
+    },
+    {
+      key: 'req',
+      label: 'リクエスト本文',
+      u: uReq,
+      m: BODY_LABEL[model.requestBody],
+      match: user.requestBody === model.requestBody,
+    },
+    {
+      key: 'res',
+      label: 'レスポンス本文',
+      u: uRes,
+      m: BODY_LABEL[model.responseBody],
+      match: user.responseBody === model.responseBody,
+    },
+  ];
+
+  return (
+    <div
+      style={{
+        background: '#FFFFFF',
+        borderRadius: compact ? 10 : 12,
+        border: '1px solid #E2E8F0',
+        padding: compact ? '10px 10px 8px' : '12px 12px 10px',
+        marginTop: compact ? 0 : 2,
+      }}
+    >
+      {showLegend !== false && (
+        <p style={DIFF_STY.legend}>
+          <span style={{ color: '#15803D' }}>■</span> 一致{' '}
+          <span style={{ color: '#DC2626', marginLeft: 8 }}>■</span> 差分あり（左があなた・右が模範）
+        </p>
+      )}
+      <div style={{ ...DIFF_STY.tableHead, fontSize: compact ? 9 : 10 }}>
+        <span>項目</span>
+        <span>あなたの回答</span>
+        <span>模範（代表例）</span>
+      </div>
+      {rows.map((r) => (
+        <div key={r.key} style={{ ...DIFF_STY.row, marginBottom: compact ? 6 : 7 }}>
+          <div style={{ ...DIFF_STY.label, fontSize: compact ? 10 : 11 }}>{r.label}</div>
+          <div style={DIFF_STY.userCell(r.match)}>{r.u}</div>
+          <div style={DIFF_STY.modelCell}>{r.m}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 const METHOD_META: Record<
   HttpMethod,
@@ -40,9 +233,16 @@ function getRank(score: number) {
   return RANK_THRESHOLDS.find((r) => score >= r.min) ?? RANK_THRESHOLDS[RANK_THRESHOLDS.length - 1];
 }
 
-function arraysEqual(a: string[] | undefined, b: string[] | undefined) {
-  if (!a || !b || a.length !== b.length) return false;
-  return a.every((v, i) => v === b[i]);
+function headerSetScore(user: HeaderPart[], correct: HeaderPart[]): number {
+  const u = new Set(user);
+  const c = new Set(correct);
+  if (c.size === 0 && u.size === 0) return 12;
+  let inter = 0;
+  for (const x of c) {
+    if (u.has(x)) inter += 1;
+  }
+  const union = new Set([...u, ...c]).size;
+  return Math.round((inter / union) * 12);
 }
 
 function scoreEndpoint(userAnswer: UserAnswer, ep: EndpointDef): number {
@@ -50,17 +250,21 @@ function scoreEndpoint(userAnswer: UserAnswer, ep: EndpointDef): number {
   let best = 0;
   for (const ans of allAnswers) {
     let s = 0;
-    if (userAnswer.method === ans.method) s += 40;
-    if (arraysEqual(userAnswer.path, ans.path)) s += 40;
+    if (userAnswer.method === ans.method) s += 22;
+    if (arraysEqual(userAnswer.path, ans.path)) s += 22;
     else {
       const uPath = userAnswer.path ?? [];
       const aPath = ans.path;
       if (uPath.length > 0) {
         const match = uPath.filter((seg, i) => aPath[i] === seg).length;
-        s += Math.round((match / Math.max(aPath.length, 1)) * 25);
+        s += Math.round((match / Math.max(aPath.length, 1)) * 15);
       }
     }
-    if (userAnswer.status === ans.status) s += 20;
+    if (userAnswer.status === ans.status) s += 11;
+    if (userAnswer.auth === ans.auth) s += 11;
+    if (userAnswer.requestBody === ans.requestBody) s += 11;
+    if (userAnswer.responseBody === ans.responseBody) s += 11;
+    s += headerSetScore(userAnswer.headers, ans.headers);
     best = Math.max(best, s);
   }
   return best;
@@ -272,8 +476,16 @@ function EndpointCard({
   challenge: ScenarioChallenge;
 }) {
   const score = submitted ? scoreEndpoint(value, ep) : null;
-  const best = ep.answer;
-  const isComplete = Boolean(value.method && value.path.length > 0 && value.status);
+  const modelAns = useMemo(() => getDisplayAnswer(value, ep), [value, ep]);
+  const isComplete = Boolean(
+    value.method &&
+      value.path.length > 0 &&
+      value.status &&
+      value.auth &&
+      value.requestBody &&
+      value.responseBody &&
+      value.headers.length > 0
+  );
   const clearPath = () => onChange({ ...value, path: [] });
   const borderColor =
     submitted && score != null
@@ -400,7 +612,144 @@ function EndpointCard({
         />
       </div>
 
-      <div>
+      <div style={{ marginBottom: 12 }}>
+        <div style={{ fontSize: 11, color: '#9CA3AF', fontWeight: 600, marginBottom: 5 }}>認証の想定</div>
+        <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+          {AUTH_LEVELS.map((a) => {
+            const active = value.auth === a;
+            return (
+              <button
+                type="button"
+                key={a}
+                onClick={() => !submitted && onChange({ ...value, auth: a })}
+                disabled={submitted}
+                style={{
+                  padding: '6px 12px',
+                  borderRadius: 16,
+                  border: `2px solid ${active ? '#7C3AED' : '#E5E7EB'}`,
+                  background: active ? '#7C3AED' : '#fff',
+                  color: active ? '#fff' : '#6B7280',
+                  fontWeight: 600,
+                  fontSize: 11,
+                  cursor: submitted ? 'default' : 'pointer',
+                  transition: 'all .2s',
+                }}
+              >
+                {AUTH_LABEL[a]}
+              </button>
+            );
+          })}
+        </div>
+        {showHints && !value.auth && (
+          <div style={{ fontSize: 11, color: '#D97706', marginTop: 4 }}>💡 {ep.hints.auth}</div>
+        )}
+      </div>
+
+      <div style={{ marginBottom: 12 }}>
+        <div style={{ fontSize: 11, color: '#9CA3AF', fontWeight: 600, marginBottom: 5 }}>
+          代表的なヘッダー（該当するものをすべて選択）
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {HEADER_PARTS.map((h) => {
+            const active = value.headers.includes(h);
+            const meta = HEADER_BTN[h];
+            return (
+              <button
+                type="button"
+                key={h}
+                onClick={() => !submitted && onChange({ ...value, headers: toggleHeader(value.headers, h) })}
+                disabled={submitted}
+                style={{
+                  padding: '8px 12px',
+                  borderRadius: 12,
+                  border: `2px solid ${active ? '#0D9488' : '#E5E7EB'}`,
+                  background: active ? '#CCFBF1' : '#fff',
+                  color: active ? '#0F766E' : '#6B7280',
+                  fontWeight: 600,
+                  fontSize: 12,
+                  cursor: submitted ? 'default' : 'pointer',
+                  transition: 'all .2s',
+                  textAlign: 'left' as const,
+                }}
+              >
+                <span style={{ fontFamily: "'Fira Code', monospace" }}>{meta.title}</span>
+                <span style={{ fontSize: 10, fontWeight: 500, color: '#64748B', marginLeft: 8 }}>{meta.sub}</span>
+              </button>
+            );
+          })}
+        </div>
+        {showHints && value.headers.length === 0 && (
+          <div style={{ fontSize: 11, color: '#D97706', marginTop: 4 }}>💡 {ep.hints.headers}</div>
+        )}
+      </div>
+
+      <div style={{ marginBottom: 12 }}>
+        <div style={{ fontSize: 11, color: '#9CA3AF', fontWeight: 600, marginBottom: 5 }}>リクエストボディ</div>
+        <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+          {BODY_PRESENCE.map((b) => {
+            const active = value.requestBody === b;
+            return (
+              <button
+                type="button"
+                key={`req-${b}`}
+                onClick={() => !submitted && onChange({ ...value, requestBody: b })}
+                disabled={submitted}
+                style={{
+                  padding: '6px 12px',
+                  borderRadius: 16,
+                  border: `2px solid ${active ? '#059669' : '#E5E7EB'}`,
+                  background: active ? '#059669' : '#fff',
+                  color: active ? '#fff' : '#6B7280',
+                  fontWeight: 600,
+                  fontSize: 11,
+                  cursor: submitted ? 'default' : 'pointer',
+                  transition: 'all .2s',
+                }}
+              >
+                {BODY_LABEL[b]}
+              </button>
+            );
+          })}
+        </div>
+        {showHints && !value.requestBody && (
+          <div style={{ fontSize: 11, color: '#D97706', marginTop: 4 }}>💡 {ep.hints.requestBody}</div>
+        )}
+      </div>
+
+      <div style={{ marginBottom: 12 }}>
+        <div style={{ fontSize: 11, color: '#9CA3AF', fontWeight: 600, marginBottom: 5 }}>レスポンス本文</div>
+        <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+          {BODY_PRESENCE.map((b) => {
+            const active = value.responseBody === b;
+            return (
+              <button
+                type="button"
+                key={`res-${b}`}
+                onClick={() => !submitted && onChange({ ...value, responseBody: b })}
+                disabled={submitted}
+                style={{
+                  padding: '6px 12px',
+                  borderRadius: 16,
+                  border: `2px solid ${active ? '#DB2777' : '#E5E7EB'}`,
+                  background: active ? '#DB2777' : '#fff',
+                  color: active ? '#fff' : '#6B7280',
+                  fontWeight: 600,
+                  fontSize: 11,
+                  cursor: submitted ? 'default' : 'pointer',
+                  transition: 'all .2s',
+                }}
+              >
+                {BODY_LABEL[b]}
+              </button>
+            );
+          })}
+        </div>
+        {showHints && !value.responseBody && (
+          <div style={{ fontSize: 11, color: '#D97706', marginTop: 4 }}>💡 {ep.hints.responseBody}</div>
+        )}
+      </div>
+
+      <div style={{ marginBottom: 4 }}>
         <div style={{ fontSize: 11, color: '#9CA3AF', fontWeight: 600, marginBottom: 5 }}>ステータスコード</div>
         <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
           {STATUS_CODES.map((sc) => {
@@ -438,45 +787,20 @@ function EndpointCard({
         )}
       </div>
 
-      {submitted && score !== null && score < 100 && (
-        <div
-          style={{
-            marginTop: 14,
-            padding: '10px 14px',
-            background: '#F0FDF4',
-            borderRadius: 12,
-            border: '1px solid #BBF7D0',
-          }}
-        >
-          <div style={{ fontSize: 11, fontWeight: 700, color: '#15803D', marginBottom: 6 }}>✅ 模範解答（代表例）</div>
-          <div
-            style={{
-              fontFamily: "'Fira Code', monospace",
-              fontSize: 13,
-              color: '#14532D',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6,
-              flexWrap: 'wrap',
-            }}
-          >
-            <span
-              style={{
-                background: METHOD_META[best.method].bg,
-                color: METHOD_META[best.method].color,
-                padding: '3px 10px',
-                borderRadius: 8,
-                fontWeight: 800,
-              }}
-            >
-              {best.method}
-            </span>
-            <span>/{best.path.join('/')}</span>
-            <span style={{ color: '#64748B' }}>→ {best.status}</span>
+      {submitted && score !== null && (
+        <div style={{ marginTop: 14 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: '#334155', marginBottom: 8 }}>
+            {score >= 100 ? '✅ 全項目一致' : '📊 あなたの回答と模範の比較'}
           </div>
+          <AnswerComparisonBlock
+            user={value}
+            model={modelAns}
+            compact
+            showLegend={index === 0}
+          />
           {(ep.altAnswers?.length ?? 0) > 0 && (
-            <div style={{ fontSize: 10, color: '#64748B', marginTop: 6, lineHeight: 1.5 }}>
-              別解として {ep.altAnswers!.length} パターンも採点対象に含めています。
+            <div style={{ fontSize: 10, color: '#64748B', marginTop: 8, lineHeight: 1.5 }}>
+              別解として {ep.altAnswers!.length} パターンも採点の対象に含めています（表の模範は、その中であなたの回答に最も近い代表例です）。
             </div>
           )}
         </div>
@@ -541,7 +865,7 @@ export default function ApiDesignWorkshopApp() {
   const initAnswers = useCallback((ch: ScenarioChallenge) => {
     const a: Record<number, UserAnswer> = {};
     ch.endpoints.forEach((_, i) => {
-      a[i] = { method: '', path: [], status: '' };
+      a[i] = { method: '', path: [], status: '', auth: '', requestBody: '', responseBody: '', headers: [] };
     });
     return a;
   }, []);
@@ -563,7 +887,7 @@ export default function ApiDesignWorkshopApp() {
   const handleSubmit = () => {
     let total = 0;
     challenge.endpoints.forEach((ep, i) => {
-      total += scoreEndpoint(answers[i] ?? { method: '', path: [], status: '' }, ep);
+      total += scoreEndpoint(answers[i] ?? EMPTY_USER_ANSWER, ep);
     });
     const avg = Math.round(total / challenge.endpoints.length);
     setTotalScore(avg);
@@ -594,14 +918,19 @@ export default function ApiDesignWorkshopApp() {
     }, 50);
   };
 
-  const allAnswered = challenge.endpoints.every((_, i) => {
-    const a = answers[i];
-    return a?.method && a.path.length > 0 && a.status;
-  });
-  const answeredCount = challenge.endpoints.filter((_, i) => {
-    const a = answers[i];
-    return a?.method && a.path.length > 0 && a.status;
-  }).length;
+  const isAnswerComplete = (a: UserAnswer | undefined) =>
+    Boolean(
+      a?.method &&
+        a.path.length > 0 &&
+        a.status &&
+        a.auth &&
+        a.requestBody &&
+        a.responseBody &&
+        a.headers.length > 0
+    );
+
+  const allAnswered = challenge.endpoints.every((_, i) => isAnswerComplete(answers[i]));
+  const answeredCount = challenge.endpoints.filter((_, i) => isAnswerComplete(answers[i])).length;
   const rank = totalScore !== null ? getRank(totalScore) : null;
 
   if (screen === 'menu') {
@@ -630,7 +959,9 @@ export default function ApiDesignWorkshopApp() {
               ⚙️
             </div>
             <h1 style={S.title}>API設計ワークショップ</h1>
-            <p style={S.subtitle}>シナリオに沿って REST らしいエンドポイントを組み立てよう</p>
+            <p style={S.subtitle}>
+              メソッド・URL・ステータスに加え、認証・ヘッダー・リクエスト／レスポンスの本文まで含めて REST らしく設計しよう
+            </p>
           </header>
 
           {totalBest.length > 0 && (
@@ -668,10 +999,12 @@ export default function ApiDesignWorkshopApp() {
           <section style={S.howTo}>
             <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 6, color: '#5B21B6' }}>🎯 遊び方</div>
             <div style={{ fontSize: 13, lineHeight: 1.9, color: '#4B5563' }}>
-              ① シナリオを読んで「何のリソースか」を決める
+              ① シナリオを読み、「誰が使う API か（公開／ログイン）」とリソースの関係を決める
               <br />
-              ② <strong>HTTPメソッド</strong> → <strong>パス</strong> → <strong>ステータス</strong> の順に選ぶ
-              <br />③ 全問埋めたら提出。結果画面で復習ポイントを確認
+              ② <strong>HTTPメソッド</strong> と <strong>パス</strong>のあと、<strong>認証</strong>→<strong>ヘッダー</strong>→<strong>リクエスト本文</strong>→<strong>レスポンス本文</strong>→<strong>ステータス</strong>
+              の流れで整理する（例: 204 はレスポンス本文「なし」とセット）
+              <br />
+              ③ 全項目を埋めたら提出。結果画面のミニノートで HTTP 全体を復習
             </div>
           </section>
 
@@ -802,7 +1135,7 @@ export default function ApiDesignWorkshopApp() {
               key={i}
               ep={ep}
               index={i}
-              value={answers[i] ?? { method: '', path: [], status: '' }}
+              value={answers[i] ?? EMPTY_USER_ANSWER}
               onChange={(v) => setAnswers((prev) => ({ ...prev, [i]: v }))}
               submitted={submitted}
               showHints={showHints}
@@ -913,25 +1246,28 @@ export default function ApiDesignWorkshopApp() {
           <p style={{ fontSize: 14, color: '#64748B', marginBottom: 20 }}>{r.msg}</p>
 
           <div style={{ textAlign: 'left', marginBottom: 20 }}>
-            <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 10, color: '#4B5563' }}>
-              📝 エンドポイント別スコア
+            <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 6, color: '#4B5563' }}>
+              📝 エンドポイント別スコアと比較
             </div>
+            <p style={{ fontSize: 12, color: '#64748B', lineHeight: 1.65, margin: '0 0 14px' }}>
+              各設問で<strong>左があなたの回答</strong>、<strong>右が採点に使った模範（代表例）</strong>です。左のセルが緑枠ならその項目は一致、赤枠なら模範と異なります。
+            </p>
             {challenge.endpoints.map((ep, i) => {
-              const row = answers[i] ?? { method: '', path: [], status: '' };
+              const row = answers[i] ?? EMPTY_USER_ANSWER;
               const sc = scoreEndpoint(row, ep);
               const display = getDisplayAnswer(row, ep);
               return (
                 <div
                   key={i}
                   style={{
-                    background: '#F8FAFC',
-                    borderRadius: 12,
-                    padding: '10px 14px',
-                    marginBottom: 8,
+                    background: '#F1F5F9',
+                    borderRadius: 14,
+                    padding: '12px 14px 14px',
+                    marginBottom: 12,
                     border: '1px solid #E2E8F0',
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
                     <span style={{ fontSize: 14 }} aria-hidden>
                       {sc >= 80 ? '🎉' : sc >= 40 ? '🤔' : '😅'}
                     </span>
@@ -946,7 +1282,7 @@ export default function ApiDesignWorkshopApp() {
                       {sc}pt
                     </span>
                   </div>
-                  <div style={{ height: 5, borderRadius: 3, background: '#E2E8F0', overflow: 'hidden' }}>
+                  <div style={{ height: 5, borderRadius: 3, background: '#E2E8F0', overflow: 'hidden', marginBottom: 10 }}>
                     <div
                       style={{
                         width: `${sc}%`,
@@ -957,22 +1293,10 @@ export default function ApiDesignWorkshopApp() {
                       }}
                     />
                   </div>
-                  <div style={{ marginTop: 6, fontFamily: "'Fira Code', monospace", fontSize: 11, color: '#64748B' }}>
-                    あなた:{' '}
-                    <span style={{ color: row.method === display.method ? '#15803D' : '#B91C1C' }}>
-                      {row.method || '—'}
-                    </span>{' '}
-                    <span style={{ color: arraysEqual(row.path, display.path) ? '#15803D' : '#B91C1C' }}>
-                      /{row.path.join('/') || '—'}
-                    </span>
-                    {' → '}
-                    <span style={{ color: row.status === display.status ? '#15803D' : '#B91C1C' }}>
-                      {row.status || '—'}
-                    </span>
-                  </div>
-                  {sc < 100 && (
-                    <div style={{ marginTop: 3, fontFamily: "'Fira Code', monospace", fontSize: 11, color: '#15803D' }}>
-                      参考: {display.method} /{display.path.join('/')} → {display.status}
+                  <AnswerComparisonBlock user={row} model={display} showLegend={false} />
+                  {(ep.altAnswers?.length ?? 0) > 0 && (
+                    <div style={{ fontSize: 10, color: '#64748B', marginTop: 8, lineHeight: 1.5 }}>
+                      ※ この設問は別解 {ep.altAnswers!.length} 件も採点対象です。表の模範は、あなたの回答に最も近い代表例です。
                     </div>
                   )}
                 </div>
@@ -981,7 +1305,7 @@ export default function ApiDesignWorkshopApp() {
           </div>
 
           <section style={S.howTo}>
-            <div style={{ fontWeight: 700, fontSize: 13, color: '#5B21B6', marginBottom: 6 }}>📚 REST 設計のコツ</div>
+            <div style={{ fontWeight: 700, fontSize: 13, color: '#5B21B6', marginBottom: 6 }}>📚 REST と HTTP のつながり</div>
             <div style={{ fontSize: 12, color: '#4B5563', lineHeight: 1.9, textAlign: 'left' }}>
               • リソースは<strong>名詞の複数形</strong>（/notes /shipments）で表す
               <br />
@@ -989,8 +1313,12 @@ export default function ApiDesignWorkshopApp() {
               削除
               <br />
               • 子リソースはパスで階層化（/videos/{'{id}'}/comments）
-              <br />• 作成は <strong>201</strong>、本文なし削除は <strong>204</strong>、その他の成功は多くが{' '}
-              <strong>200</strong>
+              <br />
+              • 作成は <strong>201</strong>、本文なし削除は <strong>204</strong>、その他の成功は多くが <strong>200</strong>（レスポンス本文の有無とセットで覚える）
+              <br />
+              • <strong>認証</strong>が要るときは <code style={{ fontSize: 11 }}>Authorization</code>、JSON
+              本文を送るときは <code style={{ fontSize: 11 }}>Content-Type: application/json</code>、JSON
+              を受け取りたいときは <code style={{ fontSize: 11 }}>Accept: application/json</code> を意識する
             </div>
           </section>
 
