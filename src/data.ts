@@ -27,7 +27,7 @@ export const appsData: SkillApp[] = [
     id: 'api-design-workshop',
     title: 'API設計ワークショップ',
     description:
-      'HTTPメソッド・ステータスコード・RESTfulなURL・JSONの形など、全30問のクイズでAPI設計の基礎をインタラクティブに学べます。',
+      'シナリオごとのエンドポイント問題で、HTTPメソッド・パス・ステータスに加え、認証の要否・代表的なヘッダー（Accept / Content-Type / Authorization）・リクエスト／レスポンス本文の有無までを組み立てて学べます。',
     category: 'バックエンド',
     difficulty: 2,
     status: 'available',
